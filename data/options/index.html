@@ -1,0 +1,90 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Turbo Download Manager :: Options</title>
+  </head>
+  <style type="text/css">
+    body {
+      min-width: 500px;
+    }
+    table {
+      width: 100%;
+    }
+    td:last-child {
+      text-align: right;
+    }
+    input[type=number] {
+      width: 60px;
+    }
+    summary {
+      outline: none;
+    }
+    details {
+      color: #777;
+    }
+    .low {
+      opacity: 0.5;
+      color: #941717;
+    }
+  </style>
+  <body>
+    <form>
+    <table>
+      <tr>
+        <td>Default number of threads for "audio" type (1-5):</td>
+        <td><input type="number" id="thread-audio" min=1 max=5></td>
+      </tr>
+      <tr>
+        <td>Default number of threads for "video" type (1-5):</td>
+        <td><input type="number" id="thread-video" min=1 max=5></td>
+      </tr>
+      <tr>
+        <td>Default number of threads for "image" type (1-5):</td>
+        <td><input type="number" id="thread-image" min=1 max=5></td>
+      </tr>
+      <tr>
+        <td>Default number of threads for "other" type (1-5):</td>
+        <td><input type="number" id="thread-other" min=1 max=5></td>
+      </tr>
+      <tr>
+        <td>Timeout for each thread (in seconds):</td>
+        <td><input type="number" id="timeout" min=5></td>
+      </tr>
+      <tr>
+        <td>Number of retries before pausing a download:</td>
+        <td><input type="number" id="retry-max" min=5></td>
+      </tr>
+      <tr>
+        <td colspan="2"><hr></td>
+      </tr>
+      <tr class="low">
+        <td>Maximum thread size (in megabytes):</td>
+        <td><input type="number" id="segment-max" min=100></td>
+      </tr>
+      <tr class="low">
+        <td>Minimum thread size (in kilobytes):</td>
+        <td><input type="number" id="segment-min" min=10></td>
+      </tr>
+      <tr class="low">
+        <td>Calculate the speed of each thread based on the last # of reports:</td>
+        <td><input type="number" id="speed-cache" min=5 max=20></td>
+      </tr>
+    </table>
+    <details>
+      <summary>Notes</summary>
+      1. Single-threaded downloads are handled by your browser's built-in download manager (multi-threading jobs are handled by "downloads.js" library and each segment is written into a temporary file. When all segments are fetched, the file is released to your browser's default download directory)
+      <br>
+      2. If "FileSystem" APIs are not yet supported by your browser, files will be downloaded by the browser's built-in download manager (at this moment Firefox does not support the "FileSystem" APIs. This extension will use "IndexedDB" APIs as the alternatives to the "FileSystem" APIs for small-sized files. Large-sized files are being downloaded by your browser's built-in download manager as the "IndexedDB" is not capable of allocating the disk)
+    </details>
+    <p>
+      <input type="button" id="support" value="Support Development">
+      <input type="button" value="Reset" id="reset">
+      <input type="submit" value="Save">
+      <span id="info"></span>
+    </p>
+    </form>
+  </body>
+  <script src="/webext/utils/dom.js"></script>
+  <script src="index.js"></script>
+</html>

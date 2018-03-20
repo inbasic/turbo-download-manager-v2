@@ -1,0 +1,186 @@
+body {
+  font-family: "Helvetica Neue",Helvetica,sans-serif;
+  font-size: 13px;
+  background-color: #efefef;
+  user-select: none;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  margin: 0;
+  padding: 0 8px 8px 8px;
+  box-sizing: border-box;
+}
+.entry {
+  background-color: #fff;
+  padding: 10px;
+  box-shadow: 2px 2px 2px 1px #ccc;
+  background-position: center left 10px;
+  background-repeat: no-repeat;
+  background-size: 32px;
+  background-image: url(download.png);
+  padding-left: 52px;
+}
+.entry:not(:last-child) {
+  margin-bottom: 10px;
+}
+.entry>div {
+  border-left: solid 1px #d3d2d3;
+  padding-left: 10px;
+}
+.entry a {
+  text-decoration: none;
+}
+.entry a, .entry a:link, .entry a:visited {
+  color: #2f73ea;
+}
+.entry [data-id="file"] {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 10px;
+}
+.entry [data-id="name"] {
+  font-weight: bold;
+}
+.entry[data-state=interrupted] [data-id="name"],
+.entry[data-exists=false] [data-id="name"] {
+  text-decoration: line-through;
+  color: #6d6d6d;
+  pointer-events: none;
+}
+.entry [data-id="url"] {
+  color: #6d6d6d;
+}
+.entry [data-id="sections"] {
+  margin-top: 10px;
+  position: relative;
+  height: 2px;
+}
+.entry [data-id="sections"]>div {
+  position: absolute;
+  height: 100%;
+}
+.entry [data-id="sections"]>div:nth-child(1) {
+  background-color: #E6B0AA;
+}
+.entry [data-id="sections"]>div:nth-child(2) {
+  background-color: #D6EAF8;
+}
+.entry [data-id="sections"]>div:nth-child(3) {
+  background-color: #A9DFBF;
+}
+.entry [data-id="sections"]>div:nth-child(4) {
+  background-color: #E5E7E9;
+}
+.entry [data-id="sections"]>div:nth-child(5) {
+  background-color: #AEB6BF;
+}
+.entry [data-id="sections"]>div:nth-child(6) {
+  background-color: #AF7AC5;
+}
+.entry [data-id="progress"] {
+  height: 4px;
+  background-color: #efefef;
+}
+.entry[data-state=complete] [data-id="stats"],
+.entry[data-state=complete] [data-id="sections"],
+.entry[data-state=complete] [data-id="progress"],
+.entry[data-state=interrupted] [data-id="sections"],
+.entry[data-state=interrupted] [data-id="progress"] {
+  display: none;
+}
+.entry [data-id="progress"]>div {
+  height: 100%;
+  background-color: #2f73ea;
+}
+.entry[data-paused=true] [data-id="progress"]>div {
+  background-color: #c6a60e;
+}
+.entry [data-cmd] {
+  font-weight: bold;
+}
+.entry [data-cmd=cancel] {
+  color: #6d6d6d !important;
+}
+.entry[data-can-resume=false] [data-cmd=resume] {
+  display: none;
+}
+.entry[data-state="interrupted"] [data-cmd=cancel],
+.entry[data-state="interrupted"] [data-cmd=resume] {
+  display: none;
+}
+.entry[data-paused=true] [data-id=stats-speed] {
+  display: none;
+}
+.entry[data-state=complete] [data-cmd]:not([data-cmd=open]) {
+  display: none;
+}
+.entry[data-paused=true] [data-cmd=pause],
+.entry[data-state=interrupted] [data-cmd=pause],
+.entry[data-exists=false] [data-cmd=open],
+.entry[data-state=interrupted] [data-cmd=open] {
+  display: none;
+}
+.entry[data-exists=false] [data-cmd=open] {
+  color: #6d6d6d;
+  pointer-events: none;
+}
+.entry[data-state=in_progress] [data-cmd=open] {
+  display: none;
+}
+
+#tools {
+  margin-bottom: 10px;
+  position: sticky;
+  top: 0;
+}
+#tools input {
+  border: solid 1px #2c5cd0;
+  background-color: #3786f0;
+  color: #fff;
+  padding: 3px 10px;
+  margin-left: 10px;
+  margin-top: -1px;
+  cursor: pointer;
+  outline: none;
+}
+#tools input:active {
+  opacity: 0.5;
+}
+
+#list {
+  overflow-y: auto;
+}
+#list:empty:before {
+  position: absolute;
+  content: 'Files you download appear here';
+  margin: auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+[hbox] {
+  display: flex;
+}
+[vbox] {
+  display: flex;
+  flex-direction: column;
+}
+[align=center] {
+  align-items: center;
+}
+[align=end] {
+  align-items: flex-end;
+}
+[pack=center] {
+  justify-content: center;
+}
+[pack=end] {
+  justify-content: flex-end;
+}
+[flex="1"] {
+  flex: 1;
+}

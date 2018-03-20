@@ -1,0 +1,47 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <title>Turbo Download Manager</title>
+    <link rel="stylesheet" href="index.css">
+  </head>
+  <body vbox>
+    <template id=entry>
+      <div class="entry" hbox align="center">
+        <input type="checkbox" name="selected">
+        <input type="text" name="filename" placeholder="optional filename">
+        <input type="text" name="url" readonly="true">
+        <input type="number" name="threads" min=1 max=5 value=2 title="Number of threads (1-5)">
+      </div>
+    </template>
+    <div hbox pack=end>
+      <a href="#" data-cmd="select-none">Select none</a>
+      <a href="#" data-cmd="select-all">Select all</a>
+    </div>
+    <div id="list"></div>
+    <form id="add">
+      <fieldset>
+        <legend>Add a new download</legend>
+        <div hbox>
+          <input type="text" name="url" placeholder="http://a-downloadable-url/" required>
+          <input type="submit" value="Add">
+        </div>
+      </fieldset>
+    </form>
+    <form hbox id="download">
+      <input type="text" name="pattern" value="name-[#=1].[ext]" id="pattern">
+      <input type="button" value="Rename" id="rename">
+      <input type="button" id="image" value="Grab all images">
+      <input type="button" id="copy" value="Copy to clipboard" disabled="true">
+      <div flex="1"></div>
+      <input type="button" value="Cancel">
+      <input type="submit" value="Download" disabled="true">
+    </form>
+  </body>
+  <script src="/webext/utils/popup.js"></script>
+  <script src="/webext/utils/dom.js"></script>
+  <script src="ui.js"></script>
+  <script src="index.js"></script>
+  <script src="image.js"></script>
+  <script src="rename.js"></script>
+</html>

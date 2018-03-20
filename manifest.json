@@ -1,0 +1,87 @@
+{
+  "manifest_version": 2,
+  "version": "0.4.0",
+  "name": "Turbo Download Manager (v2)",
+  "description": "a multi-thread download manager with a built-in audio, video and image grabber",
+
+  "permissions": [
+    "storage",
+    "downloads",
+    "downloads.open",
+    "notifications",
+    "clipboardRead",
+    "clipboardWrite",
+    "contextMenus",
+    "*://*/*"
+  ],
+
+  "icons": {
+    "16": "data/icons/16.png",
+    "18": "data/icons/18.png",
+    "19": "data/icons/19.png",
+    "32": "data/icons/32.png",
+    "36": "data/icons/36.png",
+    "38": "data/icons/38.png",
+    "48": "data/icons/48.png",
+    "64": "data/icons/64.png",
+    "128": "data/icons/128.png",
+    "256": "data/icons/256.png",
+    "512": "data/icons/512.png"
+  },
+
+  "homepage_url": "http://www.add0n.com/turbo-download-manager-v2.html",
+
+  "background": {
+    "scripts": [
+      "webext/utils/EventEmitter.js",
+      "webext/core/base.js",
+      "webext/core/chrome.runtime.js",
+      "webext/core/chrome.contextMenus.js",
+      "webext/core/chrome.browserAction.js",
+      "webext/core/chrome.notifications.js",
+      "webext/core/chrome.tabs.js",
+      "webext/core/chrome.storage.js",
+      "webext/core/chrome.windows.js",
+      "get/get.js",
+      "get/idb.filesystem.js",
+      "get/file.js",
+      "get/wget.js",
+      "get/mwget.js",
+      "get/downloads.js",
+      "background.js",
+      "badge.js",
+      "icon.js"
+    ]
+  },
+
+  "browser_action": {
+    "default_popup": "data/popup/index.html",
+    "default_icon": {
+      "16": "data/icons/16.png",
+      "18": "data/icons/18.png",
+      "19": "data/icons/19.png",
+      "32": "data/icons/32.png",
+      "36": "data/icons/36.png",
+      "38": "data/icons/38.png",
+      "48": "data/icons/48.png",
+      "64": "data/icons/64.png"
+    }
+  },
+
+  "content_scripts":[{
+    "matches":["*://*/*"],
+    "all_frames": true,
+    "match_about_blank": true,
+    "js":["data/inject.js"]
+  }],
+  "options_ui": {
+    "page": "data/options/index.html",
+    "chrome_style": true
+  },
+  "applications": {
+    "gecko": {
+      "id": "jid0-dsq67mf5kjjhiiju2dfb6kk8dfw@jetpack",
+      "strict_min_version": "58.0"
+    }
+  }
+}

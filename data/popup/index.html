@@ -1,0 +1,51 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <link rel="stylesheet" href="index.css">
+  </head>
+
+  <body vbox>
+    <div id=tools hbox pack=end>
+      <input type="button" value="Clear completed" data-cmd="clear-completed">
+      <input type="button" value="Add a new job" data-cmd="open-dialog">
+    </div>
+    <template id="entry">
+      <div class="entry" data-paused="false" data-state="in_progress">
+        <div>
+          <div data-id="file">
+            <a href="#" data-id="name">Name</a>
+            <span data-id=url></span>
+          </div>
+          <div hbox>
+            <div flex=1>
+              <span data-id="stats">
+                <span data-id="stats-speed"><span data-id=speed>0 B/s</span> -</span>
+                <span data-id="fetched">1,013 KB</span> of
+              </span>
+              <span data-id="size">7.7MB</span>, <b data-id="status">Downloading</b>
+            </div>
+            <div>
+              <a href="#" data-cmd="pause">PAUSE</a>
+              <a href="#" data-cmd="resume">RESUME</a>
+              <a href="#" data-cmd="cancel">CANCEL</a>
+              <a href="#" data-cmd="open">OPEN</a>
+            </div>
+          </div>
+          <div data-id="sections"></div>
+          <div data-id="progress">
+            <div></div>
+          </div>
+        </div>
+        </div>
+    </template>
+  </body>
+
+  <div id="list" flex="1"></div>
+
+  <script src="/webext/utils/EventEmitter.js"></script>
+  <script src="/webext/core/base.js"></script>
+  <script src="/webext/core/chrome.downloads.js"></script>
+  <script src="/webext/core/chrome.runtime.js"></script>
+  <script src="index.js"></script>
+</html>
