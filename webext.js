@@ -92,11 +92,11 @@ var webext = {};
       const storage = root.policy[key].storage;
       cache.push(root.policy[key]);
 
-      root[key] = function() {
+      root[key] = function(...args) {
         if (localStorage.getItem(storage) === 'deny') {
           return;
         }
-        pointer.apply(this, arguments);
+        pointer.apply(this, args);
       };
     });
   };
@@ -257,7 +257,7 @@ webext.notifications.create = options => {
   options = Object.assign({
     title: chrome.runtime.getManifest().name,
     type: 'basic',
-    iconUrl: 'data/icons/48.png',
+    iconUrl: 'data/icons/48.png'
   }, options);
   chrome.notifications.create(options);
 };
@@ -284,7 +284,7 @@ webext.policy(webext.notifications);
     updated: {
       first: () => chrome.tabs.onUpdated.addListener(onUpdated),
       last: () => chrome.tabs.onUpdated.removeListener(onUpdated)
-    },
+    }
   }, chrome.tabs);
 }
 
@@ -300,7 +300,7 @@ webext.tabs.single = createProperties => new Promise(resolve => chrome.tabs.quer
 }, tabs => {
   if (tabs && tabs.length) {
     chrome.tabs.update(tabs[0].id, {
-      active: true,
+      active: true
     }, () => resolve({
       tab: tabs[0],
       method: 'update'
@@ -328,7 +328,6 @@ webext.tabs.execute.script = (tabId, details) => new Promise((resolve, reject) =
       resolve(arr);
     }
   });
-
 });
 // webext/core/chrome.storage.js
 /*
@@ -361,7 +360,7 @@ webext.windows.single = createData => {
   }, tabs => {
     if (tabs && tabs.length) {
       chrome.tabs.update(tabs[0].id, {
-        active: true,
+        active: true
       });
       chrome.windows.update(tabs[0].windowId, {
         focused: true
