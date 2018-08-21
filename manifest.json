@@ -33,15 +33,7 @@
 
   "background": {
     "scripts": [
-      "webext/utils/EventEmitter.js",
-      "webext/core/base.js",
-      "webext/core/chrome.runtime.js",
-      "webext/core/chrome.contextMenus.js",
-      "webext/core/chrome.browserAction.js",
-      "webext/core/chrome.notifications.js",
-      "webext/core/chrome.tabs.js",
-      "webext/core/chrome.storage.js",
-      "webext/core/chrome.windows.js",
+      "webext.js",
       "get/get.js",
       "get/idb.filesystem.js",
       "get/file.js",
