@@ -12,6 +12,7 @@
     "clipboardRead",
     "clipboardWrite",
     "contextMenus",
+    "unlimitedStorage",
     "*://*/*"
   ],
 
@@ -34,12 +35,7 @@
   "background": {
     "scripts": [
       "webext.js",
-      "get/get.js",
-      "get/idb.filesystem.js",
-      "get/file.js",
-      "get/wget.js",
-      "get/mwget.js",
-      "get/downloads.js",
+      "downloader.js",
       "background.js",
       "badge.js",
       "icon.js"
