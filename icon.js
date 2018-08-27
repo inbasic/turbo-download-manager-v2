@@ -73,8 +73,8 @@ var icon = {};
   }
 
   icon.build = (id => (type = 'normal', value) => {
+    window.clearTimeout(id);
     if (type !== 'normal') {
-      window.clearTimeout(id);
       id = window.setTimeout(icon.build, 3000, null, 'normal', 0);
     }
     if (value === 100) {

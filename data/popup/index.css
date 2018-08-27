@@ -1,8 +1,9 @@
 body {
   font-family: "Helvetica Neue",Helvetica,sans-serif;
   font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background-color: #efefef;
-  user-select: none;
   width: 600px;
   height: 600px;
   overflow: hidden;
@@ -34,16 +35,12 @@ body {
   color: #2f73ea;
 }
 .entry [data-id="file"] {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   margin-bottom: 10px;
 }
 .entry [data-id="name"] {
   font-weight: bold;
 }
-.entry[data-state=interrupted] [data-id="name"],
-.entry[data-exists=false] [data-id="name"] {
+.entry[data-state=interrupted][data-can-resume="false"] [data-id="name"] {
   text-decoration: line-through;
   color: #6d6d6d;
   pointer-events: none;
@@ -60,29 +57,27 @@ body {
   position: absolute;
   height: 100%;
 }
-.entry [data-id="sections"]>div:nth-child(1) {
-  background-color: #E6B0AA;
+.entry [data-id="sections"]>div:nth-child(5n+1) {
+  background-color: #fc440f;
 }
-.entry [data-id="sections"]>div:nth-child(2) {
-  background-color: #D6EAF8;
+.entry [data-id="sections"]>div:nth-child(5n+2) {
+  background-color: #1effbc;
 }
-.entry [data-id="sections"]>div:nth-child(3) {
-  background-color: #A9DFBF;
+.entry [data-id="sections"]>div:nth-child(5n+3) {
+  background-color: #7c9299;
 }
-.entry [data-id="sections"]>div:nth-child(4) {
-  background-color: #E5E7E9;
+.entry [data-id="sections"]>div:nth-child(5n+4) {
+  background-color: #1f01b9;
 }
-.entry [data-id="sections"]>div:nth-child(5) {
-  background-color: #AEB6BF;
-}
-.entry [data-id="sections"]>div:nth-child(6) {
-  background-color: #AF7AC5;
+.entry [data-id="sections"]>div:nth-child(5n+5) {
+  background-color: #b4e33d;
 }
 .entry [data-id="progress"] {
   height: 4px;
   background-color: #efefef;
 }
 .entry[data-state=complete] [data-id="stats"],
+.entry[data-state=interrupted] [data-id="stats"],
 .entry[data-state=complete] [data-id="sections"],
 .entry[data-state=complete] [data-id="progress"],
 .entry[data-state=interrupted] [data-id="sections"],
@@ -105,8 +100,8 @@ body {
 .entry[data-can-resume=false] [data-cmd=resume] {
   display: none;
 }
-.entry[data-state="interrupted"] [data-cmd=cancel],
-.entry[data-state="interrupted"] [data-cmd=resume] {
+.entry[data-state="interrupted"][data-can-resume="false"] [data-cmd=cancel],
+.entry[data-state="interrupted"][data-can-resume="false"] [data-cmd=resume] {
   display: none;
 }
 .entry[data-paused=true] [data-id=stats-speed] {
@@ -143,6 +138,7 @@ body {
   margin-top: -1px;
   cursor: pointer;
   outline: none;
+  font-weight: 600;
 }
 #tools input:active {
   opacity: 0.5;
@@ -151,7 +147,7 @@ body {
 #list {
   overflow-y: auto;
 }
-#list:empty:before {
+#list:empty::before {
   position: absolute;
   content: 'Files you download appear here';
   margin: auto;

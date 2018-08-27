@@ -17,7 +17,7 @@ downloads.unit = bytes => {
   if (Math.abs(bytes) < thresh) {
     return bytes + ' B';
   }
-  const units = ['kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  const units = ['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
   let u = -1;
   do {
     bytes /= thresh;
@@ -30,7 +30,7 @@ downloads.unit = bytes => {
 downloads.icon = {
   cache: {},
   fetch: id => new Promise(resolve => webext.downloads.getFileIcon(id, src => {
-    if (chrome.runtime.lastError === undefined) {
+    if (!chrome.runtime.lastError) {
       resolve(src);
     }
   })),
@@ -49,14 +49,14 @@ downloads.icon = {
 };
 
 downloads.add = item => {
-  const {id, filename = '', url, fileSize, bytesReceived, totalBytes, sections, paused, state, exists, canResume, mime} = item;
+  const {id, filename = '', url, bytesReceived, totalBytes, sections, paused, state, exists, canResume, mime} = item;
   const clone = document.importNode(downloads.template.content, true);
 
   const root = clone.querySelector('.entry');
   root.dataset.wget = Boolean(sections);
   clone.querySelector('[data-id="name"]').textContent = filename.split(/[/\\]/).pop();
   clone.querySelector('[data-id="url"]').textContent = url;
-  clone.querySelector('[data-id="size"]').textContent = downloads.unit(fileSize);
+  clone.querySelector('[data-id="size"]').textContent = downloads.unit(totalBytes);
   clone.querySelector('[data-id="progress"]>div').style.width = bytesReceived / totalBytes * 100 + '%';
   Object.assign(root.dataset, {
     paused,
@@ -76,7 +76,7 @@ downloads.status = item => {
   const {state, paused, error, exists, id} = item;
   const div = document.querySelector(`[data-id="${id}"]`);
   if (div) {
-    if (state === 'in_progress') {
+    if (state === 'in_progress' || paused) {
       div.querySelector('[data-id="status"]').textContent = paused === true ? 'Paused' : 'Downloading';
     }
     else if (state === 'interrupted') {
@@ -89,6 +89,7 @@ downloads.status = item => {
 };
 
 downloads.update = item => {
+  // console.log(item);
   const {id, startTime, estimatedEndTime, bytesReceived, totalBytes, sections} = item;
   const div = document.querySelector(`[data-id="${id}"]`);
   if (div) {
@@ -99,7 +100,7 @@ downloads.update = item => {
       speed = bytesReceived / dt;
     }
 
-    div.querySelector('[data-id=speed]').textContent = dt ? downloads.unit(speed) + '/s' : 'NA';
+    div.querySelector('[data-id=speed]').textContent = dt ? downloads.unit(speed) + '/s' : '0 B/s';
     div.querySelector('[data-id=fetched]').textContent = downloads.unit(bytesReceived);
     div.querySelector('[data-id=progress]>div').style.width = bytesReceived / totalBytes * 100 + '%';
 
@@ -126,6 +127,7 @@ webext.downloads.on('changed', ({id, native}) => {
   const div = document.querySelector(`[data-id="${id}"]`);
   if (div) {
     div.dataset.id = native.id;
+    div.querySelector('[data-id="name"]').textContent = native.filename.split(/[/\\]/).pop();
     div.dataset.wget = false;
     downloads.update(native);
     downloads.icon.resolve(native.id).then(src => div.style['background-image'] = `url(${src})`);
@@ -156,9 +158,9 @@ webext.downloads.on('changed', obj => {
 });
 
 async function init() {
-  const items = [].concat.apply([], await Promise.all([
+  const items = [].concat([], ...await Promise.all([
     downloads.search({limit: 30}),
-    downloads.search({state: 'in_progress'}),   // make sure to include all in progressed items,
+    downloads.search({state: 'in_progress'}), // make sure to include all in progressed items,
     background.search({})
   ]));
 
@@ -169,8 +171,7 @@ async function init() {
   const entries = Object.values(cache).map(o => {
     o.sTime = new Date(o.startTime).getTime();
     return o;
-  })
-    .sort((a, b) => b.sTime - a.sTime);
+  }).sort((a, b) => b.sTime - a.sTime);
   // fix mime types
   entries.filter(i => i.mime === '').forEach(i => {
     const re = /\.([^./\\?]*)$/.exec(i.filename);
@@ -184,14 +185,19 @@ async function init() {
   const mimes = {};
   entries.filter(i => i.mime).forEach(i => {
     mimes[i.mime] = mimes[i.mime] || [];
-    mimes[i.mime].push(i);
+    if (i.sections === undefined) {
+      mimes[i.mime].push(i);
+    }
   });
   Object.values(mimes).forEach(items => {
-    downloads.icon.resolve(items[0]).then(src => {
-      [...document.querySelectorAll(`[data-mime="${items[0].mime}"]`)].forEach(root => {
-        root.style['background-image'] = `url('${src}')`;
+    items = items.filter(i => i.sections === undefined);
+    if (items.length) {
+      downloads.icon.resolve(items[0]).then(src => {
+        [...document.querySelectorAll(`[data-mime="${items[0].mime}"]`)].forEach(root => {
+          root.style['background-image'] = `url('${src}')`;
+        });
       });
-    });
+    }
   });
 }
 
@@ -237,7 +243,7 @@ document.addEventListener('click', ({target}) => {
 webext.runtime.getBackgroundPage(bg => {
   background.bg = bg;
   init();
-  window.setInterval(update, 700);
+  window.setInterval(update, 1000);
   update();
 });
 webext.runtime.on('message', ({obj}) => {

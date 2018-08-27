@@ -1,5 +1,13 @@
-/* globals dom, popup */
+/* globals dom */
 'use strict';
+
+var popup = {};
+popup.post = message => new Promise(resolve => chrome.runtime.sendMessage(message, resolve));
+popup.background = () => new Promise(resolve => chrome.runtime.getBackgroundPage(resolve));
+popup.notify = async message => {
+  const bg = await popup.background();
+  bg.webext.notifications.create({message});
+};
 
 var args = location.search.substr(1).split('&').reduce((p, c) => {
   const [key, value] = c.split('=');
@@ -38,7 +46,7 @@ if (args.tabId) {
     allFrames: true
   }, arr => {
     if (chrome.runtime.lastError === undefined) {
-      [].concat.apply([], arr).filter((s, i, l) => s && l.indexOf(s) === i)
+      [].concat([], ...arr).filter((s, i, l) => s && l.indexOf(s) === i)
         .forEach(obj => add(obj));
     }
   });
@@ -52,7 +60,7 @@ const jobs = () => [...document.querySelectorAll('#list input[type=checkbox]:che
   .map(e => ({
     url: e.querySelector('[name=url]').value,
     filename: e.querySelector('[name=filename]').value,
-    threads: Math.min(5, Number(e.querySelector('[name=threads]').value)),
+    threads: Math.min(5, Number(e.querySelector('[name=threads]').value))
   }));
 
 dom.$('download').on('submit', e => {
@@ -61,7 +69,7 @@ dom.$('download').on('submit', e => {
   popup.post({
     method: 'download',
     jobs: jobs()
-  }).then(() => window.close());
+  });
 });
 dom.$('add').on('submit', e => {
   e.preventDefault();

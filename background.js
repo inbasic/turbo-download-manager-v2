@@ -57,8 +57,8 @@ webext.contextMenus.on('clicked', (info, tab) => {
     webext.windows.create({
       type: 'popup',
       url: 'data/dialog/index.html?tabId=' + id,
-      width: 600,
-      height:500,
+      width: 700,
+      height: 500,
       left: screen.availLeft + Math.round((screen.availWidth - 600) / 2),
       top: screen.availTop + Math.round((screen.availHeight - 500) / 2),
     });
@@ -94,7 +94,10 @@ webext.runtime.on('message', ({count}, {tab}) => webext.browserAction.setBadgeTe
     'speed-cache': Number(localStorage.getItem('speed-cache')) || 10
   }));
 
-  webext.runtime.on('message', ({jobs}) => add(jobs)).if(({method}) => method === 'download');
+  webext.runtime.on('message', ({jobs}, sender) => {
+    chrome.tabs.remove(sender.tab.id);
+    add(jobs);
+  }).if(({method}) => method === 'download');
   webext.contextMenus.on('clicked', ({linkUrl}) => add([{
     url: linkUrl,
     threads: localStorage.getItem('thread-other') || 2
@@ -116,17 +119,17 @@ webext.runtime.on('start-up', () => {
   // FAQs
   webext.storage.get({
     'version': null,
-    'faqs': false,
-    'last-update': 0,
+    'faqs': true,
+    'last-update': 0
   }).then(prefs => {
     if (prefs.version ? (prefs.faqs && prefs.version !== version) : true) {
       const now = Date.now();
-      const doUpdate = (now - prefs['last-update']) / 1000 / 60 / 60 / 24 > 30;
+      const doUpdate = (now - prefs['last-update']) / 1000 / 60 / 60 / 24 > 45;
       webext.storage.set({
         version,
         'last-update': doUpdate ? Date.now() : prefs['last-update']
       }).then(() => {
-        // do not display the FAQs page if last-update occurred less than 30 days ago.
+        // do not display the FAQs page if last-update occurred less than 45 days ago.
         if (doUpdate) {
           const p = Boolean(prefs.version);
           webext.tabs.create({

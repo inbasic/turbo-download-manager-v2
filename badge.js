@@ -36,10 +36,13 @@
   observe.start = () => {
     count();
     window.clearTimeout(observe.id);
-    observe.id = window.setTimeout(observe.start, 1000);
+    observe.id = window.setTimeout(observe.start, 1500);
   };
-  observe.end = ({state}) => {
-    if (state) {
+  observe.end = d => {
+    if (d.paused && d.paused.current === false) {
+      observe.start();
+    }
+    if (d.state) {
       count();
     }
   };

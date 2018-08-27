@@ -21,7 +21,7 @@ document.getElementById('image').addEventListener('click', () => {
     if (lastError) {
       return popup.notify(lastError.message);
     }
-    [].concat.apply([], arr).filter((s, i, l) => s && l.indexOf(s) === i)
+    [].concat([], ...arr).filter((s, i, l) => s && l.indexOf(s) === i)
       .forEach(url => add({
         url,
         mime: 'image'
