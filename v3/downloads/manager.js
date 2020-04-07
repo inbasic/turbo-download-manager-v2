@@ -1,3 +1,23 @@
+/**
+    Turbo Download Manager - .A download manager with the ability to pause and resume downloads
+
+    Copyright (C) 2014-2020 [InBasic](https://add0n.com/turbo-download-manager-v2.html)
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the Mozilla Public License as published by
+    the Mozilla Foundation, either version 2 of the License, or
+    (at your option) any later version.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    Mozilla Public License for more details.
+    You should have received a copy of the Mozilla Public License
+    along with this program.  If not, see {https://www.mozilla.org/en-US/MPL/}.
+
+    GitHub: https://github.com/inbasic/turbo-download-manager-v2/
+    Homepage: https://add0n.com/turbo-download-manager-v2.html
+*/
+
 'use strict';
 
 const downloads = {
