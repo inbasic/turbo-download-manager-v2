@@ -1,0 +1,39 @@
+{
+  "manifest_version": 2,
+  "version": "0.5.0",
+  "name": "Turbo Download Manager (3rd)",
+  "description": "A download manager with the ability to pause and resume downloads, download remote files, and more.",
+
+  "permissions": [
+    "storage",
+    "downloads",
+    "downloads.open",
+    "notifications",
+    "clipboardRead",
+    "contextMenus",
+    "unlimitedStorage",
+    "*://*/*"
+  ],
+  "icons": {
+    "16": "data/icons/16.png",
+    "19": "data/icons/19.png",
+    "32": "data/icons/32.png",
+    "38": "data/icons/38.png",
+    "48": "data/icons/48.png",
+    "64": "data/icons/64.png",
+    "128": "data/icons/128.png",
+    "256": "data/icons/256.png",
+    "512": "data/icons/512.png"
+  },
+  "homepage_url": "https://www.add0n.com/turbo-download-manager-v2.html",
+  "background": {
+    "scripts": [
+      "downloads/get.js",
+      "downloads/manager.js",
+      "background.js"
+    ]
+  },
+  "browser_action": {
+    "default_popup": "data/manager/index.html"
+  }
+}
