@@ -1,8 +1,8 @@
 {
   "manifest_version": 2,
-  "version": "0.4.1",
+  "version": "0.4.2",
   "name": "Turbo Download Manager (v2)",
-  "description": "a multi-thread download manager with a built-in audio, video and image grabber",
+  "description": "A download manager with the ability to pause and resume downloads, download remote files, and more.",
 
   "permissions": [
     "storage",

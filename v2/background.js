@@ -60,7 +60,7 @@ webext.contextMenus.on('clicked', (info, tab) => {
       width: 700,
       height: 500,
       left: screen.availLeft + Math.round((screen.availWidth - 600) / 2),
-      top: screen.availTop + Math.round((screen.availHeight - 500) / 2),
+      top: screen.availTop + Math.round((screen.availHeight - 500) / 2)
     });
   };
   webext.contextMenus.on('clicked', (info, tab) => open(tab))
