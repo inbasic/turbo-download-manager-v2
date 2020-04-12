@@ -13,36 +13,9 @@
     <span data-command="detach">Detach</span>
     <span data-command="add-new">Add Jobs</span>
   </header>
-  <template id="entry"><div class="entry">
-      <img data-id="icon" src="download.png">
-      <div data-id="name-container">
-        <span data-id="name" data-command="open"></span>
-        <a data-id="link"></a>
-      </div>
-      <div data-id="tools">
-        <div>
-          <span data-id="speed"></span>
-          <span data-id="size"></span>
-        </div>
-        <div data-id="actions">
-          <span data-command="pause">PAUSE</span>
-          <span data-command="resume">RESUME</span>
-          <span data-command="cancel">CANCEL</span>
-          <span data-command="show">SHOW</span>
-          <span data-command="erase">REMOVE</span>
-        </div>
-      </div>
-      <div data-id="progress">
-        <div data-id="total">
-          <span></span>
-        </div>
-        <div data-id="partial">
-          <span></span>
-        </div>
-      </div>
-  </div></template>
   <section id="entries"></section>
 
+  <script type="text/javascript" src="components/download-item.js"></script>
   <script type="text/javascript" src="index.js"></script>
 </body>
 </html>

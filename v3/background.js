@@ -191,35 +191,7 @@ manager.onChanged.addListener(info => {
 chrome.contextMenus.onClicked.addListener(info => {
   if (info.menuItemId === 'extract-links') {
     chrome.tabs.executeScript({
-      code: `{
-        const div = document.createElement('div');
-        const selection = window.getSelection();
-        for (let i = 0; i < selection.rangeCount; i++) {
-          const range = selection.getRangeAt(i);
-          const f = range.cloneContents();
-          div.appendChild(f);
-        }
-        let links = [...div.querySelectorAll('a')].map(a => a.href);
-
-        chrome.runtime.sendMessage({
-          method: 'extract-links',
-          content: div.innerHTML
-        }, ls => {
-          links.push(...ls);
-          links = links.filter((s, i, l) => s && l.indexOf(s) === i);
-          if (links.length) {
-            if (window.confirm('Confirm Downloading:\\n\\n' + links.join('\\n'))) {
-              chrome.runtime.sendMessage({
-                method: 'add-new',
-                value: links.map(s => '3|' + s).join(', ')
-              });
-            }
-          }
-          else {
-            alert('There is no link in the active selection');
-          }
-        });
-      }`
+      file: '/data/scripts/selection.js'
     });
   }
   else if (info.menuItemId.startsWith('download-')) {
@@ -236,28 +208,26 @@ chrome.contextMenus.onClicked.addListener(info => {
 
 /* FAQs & Feedback */
 {
-  const {onInstalled, setUninstallURL, getManifest} = chrome.runtime;
-  const {name, version} = getManifest();
-  const page = getManifest().homepage_url;
+  const {management, runtime: {onInstalled, setUninstallURL, getManifest}, storage, tabs} = chrome;
   if (navigator.webdriver !== true) {
+    const page = getManifest().homepage_url;
+    const {name, version} = getManifest();
     onInstalled.addListener(({reason, previousVersion}) => {
-      chrome.storage.local.get({
+      management.getSelf(({installType}) => installType === 'normal' && storage.local.get({
         'faqs': true,
         'last-update': 0
       }, prefs => {
         if (reason === 'install' || (prefs.faqs && reason === 'update')) {
           const doUpdate = (Date.now() - prefs['last-update']) / 1000 / 60 / 60 / 24 > 45;
           if (doUpdate && previousVersion !== version) {
-            chrome.tabs.create({
-              url: page + '?version=' + version +
-                (previousVersion ? '&p=' + previousVersion : '') +
-                '&type=' + reason,
+            tabs.create({
+              url: page + '?version=' + version + (previousVersion ? '&p=' + previousVersion : '') + '&type=' + reason,
               active: reason === 'install'
             });
-            chrome.storage.local.set({'last-update': Date.now()});
+            storage.local.set({'last-update': Date.now()});
           }
         }
-      });
+      }));
     });
     setUninstallURL(page + '?rd=feedback&name=' + encodeURIComponent(name) + '&version=' + version);
   }
