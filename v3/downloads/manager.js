@@ -318,12 +318,17 @@ const manager = {
 
 // restore indexdb
 {
-  const restore = () => indexedDB.databases().then(os => {
+  const restore = async () => {
+    const os = 'databases' in indexedDB ? await indexedDB.databases() : Object.keys(localStorage)
+      .filter(name => name.startsWith('file:'))
+      .map(name => ({
+        name: name.replace('file:', '')
+      }));
     for (const o of os) {
       downloads.download({}, id => {
         const {core} = downloads.cache[id];
         core.restore(o.name).catch(e => {
-          console.warn('Cannot restore segments', e, core);
+          console.warn('Cannot restore segments. This database will be removed', e, core);
           try {
             core.properties.file.remove();
             delete downloads.cache[id];
@@ -332,17 +337,16 @@ const manager = {
         });
       }, undefined, false);
     }
-  });
-  if ('databases' in indexedDB) {
-    chrome.runtime.onStartup.addListener(restore);
-    chrome.runtime.onInstalled.addListener(restore);
-  }
+  };
+
+  chrome.runtime.onStartup.addListener(restore);
+  chrome.runtime.onInstalled.addListener(restore);
 }
 // restore not started
 chrome.storage.sync.get({
   links: []
 }, prefs => {
-  if (!chrome.runtime.lastError && prefs.links.length) {
+  if (prefs && prefs.links.length) {
     manager.schedlue(prefs.links, false);
   }
 });

@@ -117,7 +117,8 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
     chrome.tabs.executeScript({
       code: 'append.links'
     }, one => chrome.tabs.executeScript({
-      code: `[...document.querySelectorAll('video,audio,video source, audio source')].map(s => s.src).filter(s => s)`
+      code: `[...document.querySelectorAll('video,audio,video source, audio source')]
+               .map(s => s.src).filter(s => s && s.startsWith('http'))`
     }, two => {
       const links = [...one, ...two].flat().filter((s, i, l) => s && l.indexOf(s) === i);
       response(links);
@@ -161,8 +162,9 @@ const update = {
         if (ds.some(d => d.paused === false)) {
           update.id = setTimeout(() => update.perform(), 1000);
         }
-        const bytesReceived = ds.reduce((p, c) => p + c.bytesReceived, 0);
-        const totalBytes = ds.reduce((p, c) => p + c.totalBytes, 0);
+        const dsb = ds.filter(d => d.totalBytes > 0);
+        const bytesReceived = dsb.reduce((p, c) => p + c.bytesReceived, 0);
+        const totalBytes = dsb.reduce((p, c) => p + c.totalBytes, 0);
         chrome.browserAction.setBadgeText({
           text: totalBytes ? (bytesReceived / totalBytes * 100).toFixed(0) + '%' : ''
         });

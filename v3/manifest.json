@@ -38,8 +38,15 @@
   },
   "content_scripts":[{
     "matches":["*://*/*"],
+    "exclude_matches": ["*://*.youtube.com/*"],
     "all_frames": true,
     "match_about_blank": true,
     "js":["data/scripts/inject.js"]
-  }]
+  }],
+  "applications": {
+    "gecko": {
+      "id": "jid0-dsq67mf5kjjhiiju2dfb6kk8dfw@jetpack",
+      "strict_min_version": "58.0"
+    }
+  }
 }

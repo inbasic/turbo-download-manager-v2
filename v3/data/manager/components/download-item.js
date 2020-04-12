@@ -1,3 +1,5 @@
+const isFirefox = /Firefox/.test(navigator.userAgent);
+
 class DownloadItem extends HTMLElement {
   constructor() {
     super();
@@ -125,7 +127,6 @@ class DownloadItem extends HTMLElement {
         }
         .entry span[data-id=name] {
           font-weight: bold;
-          color: var(--blue);
           display: inline-block;
           max-width: 300px;
           cursor: pointer;
@@ -141,12 +142,17 @@ class DownloadItem extends HTMLElement {
           overflow: hidden;
           text-overflow: ellipsis;
         }
-        .entry[data-exists="false"] span[data-id=name],
+        .entry:not([data-state="complete"]) span[data-id=name] {
+          pointer-events: none;
+        }
+        .entry[data-state="complete"][data-exists="true"] span[data-id=name] {
+          color: var(--blue);
+        }
+        .entry[data-state="complete"][data-exists="false"] span[data-id=name],
         .entry[data-state="interrupted"] span[data-id=name] {
           text-decoration: line-through;
           color: inherit;
           cursor: default;
-          pointer-events: none;
         }
         .entry a[data-id=link] {
           color: var(--gray);
@@ -243,6 +249,9 @@ class DownloadItem extends HTMLElement {
     });
   }
   format(bytes) {
+    if (bytes <= 0) {
+      return 'NA';
+    }
     const thresh = 1024;
     if (Math.abs(bytes) < thresh) {
       return bytes + ' B';
@@ -291,33 +300,44 @@ class DownloadItem extends HTMLElement {
   }
   /* ui */
   speed(d) {
-    const {speed, threads, estimatedEndTime, bytesReceived, totalBytes} = d;
+    const {speed, threads, startTime, estimatedEndTime, bytesReceived, totalBytes} = d;
     const {format, entry} = this;
     const e = entry.querySelector('[data-id=speed]');
     if ('speed' in d) {
       e.textContent = 'Speed: ' + format(speed) + '/s, Threads: ' + threads + ',';
     }
     else {
-      const s = (totalBytes - bytesReceived) / (new Date(estimatedEndTime) - Date.now()) * 1000;
-      e.textContent = 'Speed: ' + bytesReceived && estimatedEndTime ? format(s) + '/s,' : '0 B/s';
+      if (totalBytes > 0) {
+        const s = (totalBytes - bytesReceived) / (new Date(estimatedEndTime) - Date.now()) * 1000;
+        e.textContent = 'Speed: ' + (bytesReceived && estimatedEndTime ? format(s) + '/s,' : '0 B/s,');
+      }
+      else {
+        const s = bytesReceived / (Date.now() - new Date(startTime)) * 1000;
+        e.textContent = 'Speed: ' + (bytesReceived && startTime ? format(s) + '/s,' : '0 B/s,');
+      }
     }
   }
-  size({state, bytesReceived, totalBytes}) {
+  size({state, bytesReceived, fileSize, totalBytes}) {
     const {format, entry} = this;
     const e = entry.querySelector('[data-id=size]');
     if (state === 'in_progress') {
-      e.textContent = format(bytesReceived) + ' of ' + format(totalBytes);
+      e.textContent = format(bytesReceived) + ' of ' + format(totalBytes > 0 ? totalBytes : fileSize);
     }
-    if (state === 'not_started') {
+    else if (state === 'not_started') {
       e.textContent = 'Size: NA';
     }
     else {
-      e.textContent = 'Size: ' + format(totalBytes);
+      e.textContent = 'Size: ' + format(totalBytes > 0 ? totalBytes : fileSize);
     }
   }
   meta(d) {
     const {entry} = this;
     const link = entry.querySelector('[data-id=link]');
+    // Firefox only
+    if (isFirefox && d.state === 'interrupted' && d.paused && d.canResume) {
+      d.state = 'in_progress';
+    }
+
     if (d.error) {
       link.textContent = d.error;
     }
@@ -327,6 +347,7 @@ class DownloadItem extends HTMLElement {
     Object.assign(entry.dataset, {
       paused: d.paused,
       state: d.state,
+      exists: d.exists,
       threads: 'sections' in d
     });
   }
@@ -345,7 +366,6 @@ class DownloadItem extends HTMLElement {
     name.title = name.textContent = d.filename.split('/').pop();
     Object.assign(entry.dataset, {
       mime: d.mime,
-      exists: d.exists,
       extension: (d.filename.match(/\.([0-9a-z]+)$/i) || ['', ''])[1].toUpperCase()
     });
   }

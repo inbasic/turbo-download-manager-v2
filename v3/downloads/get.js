@@ -33,6 +33,10 @@ class File { /* write to disk */
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.id, 1);
       request.onupgradeneeded = () => {
+        // TODO - Remove this line when Firefox supports indexedDB.databases()
+        if (('databases' in indexedDB) === false) {
+          localStorage.setItem('file:' + this.id, true);
+        }
         // storage for chunks
         request.result.createObjectStore('chunks', {
           keyPath: 'offset'
@@ -171,6 +175,9 @@ class File { /* write to disk */
   remove() {
     if (this.db) {
       this.db.close();
+    }
+    if (('databases' in indexedDB) === false) {
+      localStorage.removeItem('file:' + this.id);
     }
     return new Promise((resolve, reject) => {
       const request = indexedDB.deleteDatabase(this.id);
