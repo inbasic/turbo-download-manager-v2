@@ -53,6 +53,7 @@ const entries = ds => {
   const parent = document.getElementById('entries');
   parent.insertBefore(f, parent.firstChild);
 };
+// start
 chrome.runtime.sendMessage({
   method: 'popup_ready'
 }, entries);
@@ -171,5 +172,11 @@ document.getElementById('entries').addEventListener('command', e => {
     chrome.tabs.create({
       url: 'https://webbrowsertools.com/' + command
     });
+  }
+  else if (command === 'start') {
+    chrome.runtime.sendMessage({
+      method: 'start',
+      id
+    }, () => e.target.remove());
   }
 });

@@ -8,6 +8,7 @@
   --state-interrupted: #ffe9dd;
   --state-transfer: #f1fffa;
   --state-paused: #fbffd8;
+  --state-not_started: #ffe8c7;
 }
 
 body {

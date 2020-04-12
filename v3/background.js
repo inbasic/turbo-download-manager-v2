@@ -43,6 +43,7 @@ const notify = e => chrome.notifications.create({
 chrome.runtime.onMessage.addListener((request, sender, response) => {
   if (request.method === 'popup_ready') {
     Promise.all([
+      new Promise(resolve => manager.search({state: 'not_started'}, resolve)),
       new Promise(resolve => manager.search({state: 'transfer'}, resolve)),
       new Promise(resolve => manager.search({state: 'interrupted'}, resolve)),
       new Promise(resolve => manager.search({state: 'complete'}, resolve))
@@ -96,11 +97,28 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
       notify('There is no link to download');
     }
   }
+  else if (request.method === 'store-links') {
+    manager.schedlue(request.links);
+  }
   else if (request.method === 'extract-links') {
     const re = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\\/%?=~_|!:,.;]*[-A-Z0-9+&@#\\/%=~_|])/gi;
     const links = (request.content.match(re) || []) .map(s => s.replace(/&amp;/g, '&'))
       .filter(href => href).filter((s, i, l) => s && l.indexOf(s) === i);
     response(links);
+  }
+  else if (request.method === 'start') {
+    manager.search({
+      id: request.id
+    }, ([d]) => {
+      manager.download({
+        url: d.finalUrl
+      }, () => {
+        manager.erase({
+          id: request.id
+        });
+        response();
+      }, CONFIG);
+    });
   }
 });
 
@@ -170,9 +188,19 @@ manager.onChanged.addListener(info => {
       id: 'extract-links'
     });
     chrome.contextMenus.create({
+      contexts: ['selection'],
+      title: 'Store Links',
+      id: 'store-links'
+    });
+    chrome.contextMenus.create({
       contexts: ['link'],
       title: 'Download Link',
       id: 'download-link'
+    });
+    chrome.contextMenus.create({
+      contexts: ['link'],
+      title: 'Download Later',
+      id: 'store-link'
     });
     chrome.contextMenus.create({
       contexts: ['image'],
@@ -194,15 +222,20 @@ chrome.contextMenus.onClicked.addListener(info => {
       file: '/data/scripts/selection.js'
     });
   }
+  else if (info.menuItemId === 'store-links') {
+    chrome.tabs.executeScript({
+      file: '/data/scripts/lazy-selection.js'
+    });
+  }
   else if (info.menuItemId.startsWith('download-')) {
     let url = info.linkUrl;
     if (info.menuItemId === 'download-image' || info.menuItemId === 'download-media') {
       url = info.srcUrl;
     }
-    else if (info.menuItemId === 'download-frame') {
-      url = info.frameUrl;
-    }
     manager.download({url}, undefined, CONFIG);
+  }
+  else if (info.menuItemId === 'store-link') {
+    manager.schedlue([info.linkUrl]);
   }
 });
 

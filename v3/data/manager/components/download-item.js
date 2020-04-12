@@ -26,6 +26,9 @@ class DownloadItem extends HTMLElement {
         .entry[data-state="transfer"] {
           background-color: var(--state-transfer);
         }
+        .entry[data-state="not_started"] {
+          background-color: var(--state-not_started);
+        }
         .entry > img {
           grid-row-start: 1;
           grid-row-end: 3;
@@ -67,6 +70,9 @@ class DownloadItem extends HTMLElement {
           display: none;
         }
         .entry[data-state="in_progress"] [data-command="erase"] {
+          display: none;
+        }
+        .entry:not([data-state="not_started"]) [data-command="start"] {
           display: none;
         }
         .entry:not([data-state="complete"]) [data-remote] {
@@ -148,6 +154,7 @@ class DownloadItem extends HTMLElement {
           font-weight: bold;
         }
         .entry[data-state="complete"] div[data-id="progress"],
+        .entry[data-state="not_started"] div[data-id="progress"],
         .entry[data-state="interrupted"] div[data-id="progress"] {
           display: none;
         }
@@ -204,6 +211,7 @@ class DownloadItem extends HTMLElement {
             <span data-remote data-command="zip-manager">EXTRACT</span>
             <span data-command="pause">PAUSE</span>
             <span data-command="resume">RESUME</span>
+            <span data-command="start">START</span>
             <span data-command="cancel">CANCEL</span>
             <span data-command="show">SHOW</span>
             <span data-command="erase">REMOVE</span>
@@ -298,6 +306,9 @@ class DownloadItem extends HTMLElement {
     const e = entry.querySelector('[data-id=size]');
     if (state === 'in_progress') {
       e.textContent = format(bytesReceived) + ' of ' + format(totalBytes);
+    }
+    if (state === 'not_started') {
+      e.textContent = 'Size: NA';
     }
     else {
       e.textContent = 'Size: ' + format(totalBytes);

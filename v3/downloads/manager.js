@@ -22,8 +22,8 @@
 
 const downloads = {
   cache: {},
-  START_INDEX: 10000,
-  index: 10000,
+  NORMAL_START_INDEX: 100000,
+  index: 100000,
   listeners: {
     onCreated: [],
     onChanged: []
@@ -147,6 +147,33 @@ downloads.onChanged = {
 };
 
 const manager = {
+  NOT_START_INDEX: 200000,
+  nindex: 200000,
+  ncache: {},
+  schedlue(links, store = true) {
+    const olinks = Object.values(manager.ncache).map(o => o.finalUrl);
+    const slinks = links.filter(link => link && olinks.indexOf(link) === -1);
+
+
+    if (slinks.length) {
+      for (const link of slinks) {
+        const id = manager.nindex;
+        manager.nindex += 1;
+        manager.ncache[id] = {
+          filename: link.split('/').pop(),
+          id,
+          finalUrl: link,
+          state: 'not_started'
+        };
+      }
+      if (store) {
+        chrome.storage.sync.set({
+          links: [...olinks, ...slinks]
+        });
+      }
+    }
+    return Promise.resolve();
+  },
   search(options, callback, comprehensive = true) {
     // console.log('manager.search', options, comprehensive);
     const sections = core => [...core.ranges].map(r => {
@@ -175,18 +202,24 @@ const manager = {
         error
       };
     };
-    if (options.id && options.id >= downloads.START_INDEX) {
+    if (options.id && options.id >= manager.NOT_START_INDEX) {
+      callback([manager.ncache[options.id]]);
+    }
+    else if (options.id && options.id >= downloads.NORMAL_START_INDEX) {
       return callback([
         comprehensive ? object(downloads.cache[options.id]) : downloads.cache[options.id]
       ]);
     }
-    if (options.id) {
-      if (options.id < downloads.START_INDEX) {
+    else if (options.id) {
+      if (options.id < downloads.NORMAL_START_INDEX) {
         chrome.downloads.search(options, callback);
       }
       else {
         downloads.search(options, callback);
       }
+    }
+    else if (options.state === 'not_started') {
+      callback(Object.values(manager.ncache));
     }
     else {
       Promise.all([
@@ -204,7 +237,7 @@ const manager = {
   },
   resume(id, callback) {
     // console.log('manager.resume');
-    if (id < downloads.START_INDEX) {
+    if (id < downloads.NORMAL_START_INDEX) {
       return chrome.downloads.resume(id, callback);
     }
     downloads.cache[id].core.resume();
@@ -212,7 +245,7 @@ const manager = {
   },
   pause(id, callback) {
     // console.log('manager.pause');
-    if (id < downloads.START_INDEX) {
+    if (id < downloads.NORMAL_START_INDEX) {
       return chrome.downloads.pause(id, callback);
     }
     downloads.cache[id].core.pause();
@@ -220,7 +253,7 @@ const manager = {
   },
   cancel(id, callback) {
     // console.log('manager.cancel');
-    if (id < downloads.START_INDEX) {
+    if (id < downloads.NORMAL_START_INDEX) {
       return chrome.downloads.cancel(id, callback);
     }
     downloads.cancel(id, callback);
@@ -229,12 +262,13 @@ const manager = {
     // console.log('manager.erase');
     manager.search(query, ds => {
       for (const {id} of ds) {
-        if (id < downloads.START_INDEX) {
-          chrome.downloads.erase({
-            id
+        if (id >= manager.NOT_START_INDEX) {
+          delete manager.ncache[id];
+          chrome.storage.sync.set({
+            links: Object.values(manager.ncache).map(o => o.finalUrl)
           });
         }
-        else {
+        else if (id >= downloads.NORMAL_START_INDEX) {
           try {
             downloads.cache[id].core.properties.file.remove();
           }
@@ -243,13 +277,18 @@ const manager = {
           }
           delete downloads.cache[id];
         }
+        else {
+          chrome.downloads.erase({
+            id
+          });
+        }
       }
       callback(ds.map(d => d.id));
     }, false);
   },
   getFileIcon(id, options, callback) {
     // console.log('manager.getFileIcon');
-    if (id < downloads.START_INDEX) {
+    if (id < downloads.NORMAL_START_INDEX) {
       return chrome.downloads.getFileIcon(id, options, callback);
     }
     callback('');
@@ -277,7 +316,7 @@ const manager = {
 //   downloads.pause(10000);
 // }, 2000);
 
-// restore
+// restore indexdb
 {
   const restore = () => indexedDB.databases().then(os => {
     for (const o of os) {
@@ -297,3 +336,9 @@ const manager = {
   chrome.runtime.onStartup.addListener(restore);
   chrome.runtime.onInstalled.addListener(restore);
 }
+// restore not started
+chrome.storage.sync.get({
+  links: []
+}, prefs => {
+  manager.schedlue(prefs.links, false);
+});
