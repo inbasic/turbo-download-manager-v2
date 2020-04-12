@@ -19,8 +19,11 @@
         `Confirm Downloading ${links.length} links:\n\n` + links.map((s, i) => `${('00' + (i + 1)).substr(-2)}. ${s}`).join('\n')
       )) {
         chrome.runtime.sendMessage({
-          method: 'add-new',
-          value: links.map(s => '3|' + s).join(', ')
+          method: 'add-jobs',
+          jobs: links.map(link => ({
+            link,
+            threads: 3
+          }))
         });
       }
     }

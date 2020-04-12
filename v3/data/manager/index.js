@@ -77,6 +77,7 @@ chrome.runtime.onMessage.addListener(request => {
     const e = document.getElementById(request.id);
     e.id = request.native.id; // convert to the native id
     e.update(request.native);
+    e.once(request.native);
     icon(request.native).then(iconURL => e.preview(iconURL));
   }
   // calls after filename is resolved
@@ -90,7 +91,8 @@ chrome.runtime.onMessage.addListener(request => {
 document.addEventListener('click', e => {
   const command = e.target.dataset.command;
   if (command === 'add-new') {
-    const next = (msg = '') => {
+    const next = links => {
+      const msg = links.map(s => '3|' + s).join(', ');
       const value = window.prompt(`Enter Downloadable Link(s):
 
  -> For multiple jobs, insert the comma-separated list of links.
@@ -99,9 +101,21 @@ document.addEventListener('click', e => {
 Example:
 3|http://www.google.com, 2|http://www.yahoo.com`, msg);
       if (value) {
+        // if there is no change, use original links
+        if (msg !== value) {
+          links = value.split(/\s*,\s*/).filter(a => a);
+        }
+
         chrome.runtime.sendMessage({
-          method: 'add-new',
-          value
+          method: 'add-jobs',
+          jobs: links.map(link => {
+            const re = /^(\d+)\|/;
+            const m = re.exec(link);
+            return {
+              link: link.replace(re, ''),
+              threads: m ? m[1] : 3
+            };
+          })
         });
       }
     };
@@ -114,7 +128,7 @@ Example:
     chrome.runtime.sendMessage({
       method: 'extract-links',
       content: input.value
-    }, links => next(links.map(s => '3|' + s).join(', ')));
+    }, links => next(links));
   }
   else if (command === 'detach') {
     chrome.tabs.create({
@@ -158,9 +172,15 @@ document.getElementById('entries').addEventListener('command', e => {
       id
     }, d => e.target.update(d));
   }
-  else if (['open', 'show', 'retry'].some(a => a === command)) {
+  else if (command === 'open') {
+    chrome.downloads.open(id);
+  }
+  else if (command === 'show') {
+    chrome.downloads.show(id);
+  }
+  else if (command === 'retry') {
     chrome.runtime.sendMessage({
-      method: command,
+      method: 'retry',
       id
     });
   }

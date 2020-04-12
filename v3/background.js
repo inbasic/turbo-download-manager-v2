@@ -69,27 +69,20 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
     }, ds => response(ds[0])));
     return true;
   }
-  else if (request.method === 'show' || request.method === 'open') {
-    chrome.downloads[request.method](request.id);
-  }
   else if (request.method === 'get-icon') {
     manager.getFileIcon(request.id, {
       size: 32
     }, response);
     return true;
   }
-  else if (request.method === 'add-new') {
-    const links = request.value.split(/\s*,\s*/).filter(a => a);
-
-    if (links.length) {
-      for (const link of links) {
-        const re = /^(\d+)\|/;
-        const m = re.exec(link);
+  else if (request.method === 'add-jobs') {
+    if (request.jobs.length) {
+      for (const {link, threads} of request.jobs) {
         manager.download({
-          url: link.replace(re, '')
+          url: link
         }, undefined, {
           ...CONFIG,
-          'max-number-of-threads': m ? Math.min(8, m[1]) : 3
+          'max-number-of-threads': threads ? Math.min(8, threads) : 3
         });
       }
     }
@@ -120,6 +113,41 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
       }, CONFIG);
     });
   }
+  else if (request.method === 'collect') {
+    chrome.tabs.executeScript({
+      code: 'append.links'
+    }, one => chrome.tabs.executeScript({
+      code: `[...document.querySelectorAll('video,audio,video source, audio source')].map(s => s.src).filter(s => s)`
+    }, two => {
+      const links = [...one, ...two].flat().filter((s, i, l) => s && l.indexOf(s) === i);
+      response(links);
+    }));
+    return true;
+  }
+});
+/* allow external download and store requests */
+chrome.runtime.onMessageExternal.addListener((request, sender, resposne) => {
+  console.log(request);
+  if (request.method === 'add-jobs') {
+    if (request.jobs.length) {
+      for (const {link, threads} of request.jobs) {
+        manager.download({
+          url: link
+        }, undefined, {
+          ...CONFIG,
+          'max-number-of-threads': threads ? Math.min(8, threads) : 3
+        });
+      }
+    }
+    else {
+      notify('There is no link to download');
+    }
+    resposne(true);
+  }
+  else if (request.method === 'store-links') {
+    manager.schedlue(request.links);
+    resposne(true);
+  }
 });
 
 const update = {
@@ -147,7 +175,7 @@ const update = {
       chrome.runtime.sendMessage({
         method: 'batch-update',
         ds
-      });
+      }, () => chrome.runtime.lastError);
     });
   }
 };
@@ -156,7 +184,7 @@ manager.onChanged.addListener(info => {
     chrome.runtime.sendMessage({
       method: 'convert-to-native',
       ...info
-    });
+    }, () => chrome.runtime.lastError);
   }
   else {
     update.perform();
@@ -166,7 +194,7 @@ manager.onChanged.addListener(info => {
       }, ds => chrome.runtime.sendMessage({
         method: 'batch-update',
         ds
-      }));
+      }, () => chrome.runtime.lastError));
     }
     else if (info.filename) {
       manager.search({
@@ -174,7 +202,7 @@ manager.onChanged.addListener(info => {
       }, ([d]) => chrome.runtime.sendMessage({
         method: 'prepare-one',
         d
-      }));
+      }, () => chrome.runtime.lastError));
     }
   }
 });
@@ -184,12 +212,12 @@ manager.onChanged.addListener(info => {
   const startup = () => {
     chrome.contextMenus.create({
       contexts: ['selection'],
-      title: 'Extract Links',
+      title: 'Extract then Download Links',
       id: 'extract-links'
     });
     chrome.contextMenus.create({
       contexts: ['selection'],
-      title: 'Store Links',
+      title: 'Extract then Store Links',
       id: 'store-links'
     });
     chrome.contextMenus.create({
@@ -212,6 +240,16 @@ manager.onChanged.addListener(info => {
       title: 'Download Media',
       id: 'download-media'
     });
+    chrome.contextMenus.create({
+      contexts: ['page'],
+      title: 'Extract then Download Media Links',
+      id: 'extract-media'
+    });
+    chrome.contextMenus.create({
+      contexts: ['page'],
+      title: 'Extract then Store Media Links',
+      id: 'lazy-extract-media'
+    });
   };
   chrome.runtime.onStartup.addListener(startup);
   chrome.runtime.onInstalled.addListener(startup);
@@ -219,12 +257,14 @@ manager.onChanged.addListener(info => {
 chrome.contextMenus.onClicked.addListener(info => {
   if (info.menuItemId === 'extract-links') {
     chrome.tabs.executeScript({
-      file: '/data/scripts/selection.js'
+      file: '/data/scripts/selection.js',
+      runAt: 'document_start'
     });
   }
   else if (info.menuItemId === 'store-links') {
     chrome.tabs.executeScript({
-      file: '/data/scripts/lazy-selection.js'
+      file: '/data/scripts/lazy-selection.js',
+      runAt: 'document_start'
     });
   }
   else if (info.menuItemId.startsWith('download-')) {
@@ -237,7 +277,28 @@ chrome.contextMenus.onClicked.addListener(info => {
   else if (info.menuItemId === 'store-link') {
     manager.schedlue([info.linkUrl]);
   }
+  else if (info.menuItemId === 'extract-media') {
+    chrome.tabs.executeScript({
+      file: '/data/scripts/collect.js',
+      runAt: 'document_start'
+    });
+  }
+  else if (info.menuItemId === 'lazy-extract-media') {
+    chrome.tabs.executeScript({
+      file: '/data/scripts/lazy-collect.js',
+      runAt: 'document_start'
+    });
+  }
 });
+
+/* badge */
+{
+  const startup = () => chrome.browserAction.setBadgeBackgroundColor({
+    color: '#646464'
+  });
+  chrome.runtime.onStartup.addListener(startup);
+  chrome.runtime.onInstalled.addListener(startup);
+}
 
 /* FAQs & Feedback */
 {

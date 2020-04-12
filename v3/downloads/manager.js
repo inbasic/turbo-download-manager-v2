@@ -333,12 +333,16 @@ const manager = {
       }, undefined, false);
     }
   });
-  chrome.runtime.onStartup.addListener(restore);
-  chrome.runtime.onInstalled.addListener(restore);
+  if ('databases' in indexedDB) {
+    chrome.runtime.onStartup.addListener(restore);
+    chrome.runtime.onInstalled.addListener(restore);
+  }
 }
 // restore not started
 chrome.storage.sync.get({
   links: []
 }, prefs => {
-  manager.schedlue(prefs.links, false);
+  if (!chrome.runtime.lastError && prefs.links.length) {
+    manager.schedlue(prefs.links, false);
+  }
 });

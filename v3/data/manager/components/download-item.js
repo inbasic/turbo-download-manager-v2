@@ -141,10 +141,12 @@ class DownloadItem extends HTMLElement {
           overflow: hidden;
           text-overflow: ellipsis;
         }
+        .entry[data-exists="false"] span[data-id=name],
         .entry[data-state="interrupted"] span[data-id=name] {
           text-decoration: line-through;
           color: inherit;
           cursor: default;
+          pointer-events: none;
         }
         .entry a[data-id=link] {
           color: var(--gray);
@@ -202,9 +204,9 @@ class DownloadItem extends HTMLElement {
             <span data-remote data-command="png-optimizer">OPTIMIZE</span>
             <span data-remote data-command="image-to-base64">BASE64</span>
             <span data-remote data-command="image-vectorizer">VECTORIZE</span>
-            <span data-remote data-command="convert-to-mp3">MP3</span>
             <span data-remote data-command="video-converter">CONVERT</span>
             <span data-remote data-command="audio-converter">CONVERT</span>
+            <span data-remote data-command="convert-to-mp3">MP3</span>
             <span data-remote data-command="epub-reader">READER</span>
             <span data-remote data-command="pdf-reader">READER</span>
             <span data-remote data-command="json-beautifier">BEAUTIFY</span>
@@ -232,7 +234,6 @@ class DownloadItem extends HTMLElement {
   connectedCallback() {
     this.entry.addEventListener('click', e => {
       const detail = e.target.dataset.command;
-      console.log(e.target, detail);
       if (detail) {
         this.dispatchEvent(new CustomEvent('command', {
           detail,
@@ -344,6 +345,7 @@ class DownloadItem extends HTMLElement {
     name.title = name.textContent = d.filename.split('/').pop();
     Object.assign(entry.dataset, {
       mime: d.mime,
+      exists: d.exists,
       extension: (d.filename.match(/\.([0-9a-z]+)$/i) || ['', ''])[1].toUpperCase()
     });
   }
