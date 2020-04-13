@@ -2,6 +2,12 @@ const append = links => {
   for (const link of links) {
     if (link && link.startsWith('http') && append.links.indexOf(link) === -1) {
       append.links.push(link);
+      if (append.notified !== true) {
+        append.notified = true;
+        chrome.runtime.sendMessage({
+          method: 'media-available'
+        });
+      }
     }
   }
   if (append.links.length > 50) {
@@ -9,6 +15,7 @@ const append = links => {
   }
 };
 append.links = [];
+append.notified = false;
 
 document.addEventListener('canplay', ({target}) => {
   append([target, ...target.querySelectorAll('source')].map(s => s.src).filter(s => s));

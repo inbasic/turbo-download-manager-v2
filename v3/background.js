@@ -125,10 +125,26 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
     }));
     return true;
   }
+  else if (request.method === 'media-available') {
+    chrome.browserAction.setIcon({
+      tabId: sender.tab.id,
+      path: {
+        '16': 'data/icons/media/16.png',
+        '19': 'data/icons/media/19.png',
+        '32': 'data/icons/media/32.png',
+        '38': 'data/icons/media/38.png',
+        '48': 'data/icons/media/48.png',
+        '64': 'data/icons/media/64.png'
+      }
+    });
+    chrome.browserAction.setTitle({
+      tabId: sender.tab.id,
+      title: 'Use page context to download or store collected media links'
+    });
+  }
 });
 /* allow external download and store requests */
 chrome.runtime.onMessageExternal.addListener((request, sender, resposne) => {
-  console.log(request);
   if (request.method === 'add-jobs') {
     if (request.jobs.length) {
       for (const {link, threads} of request.jobs) {
@@ -229,7 +245,7 @@ manager.onChanged.addListener(info => {
     });
     chrome.contextMenus.create({
       contexts: ['link'],
-      title: 'Download Later',
+      title: 'Store Link',
       id: 'store-link'
     });
     chrome.contextMenus.create({
@@ -238,19 +254,29 @@ manager.onChanged.addListener(info => {
       id: 'download-image'
     });
     chrome.contextMenus.create({
+      contexts: ['image'],
+      title: 'Store Image',
+      id: 'store-image'
+    });
+    chrome.contextMenus.create({
       contexts: ['audio', 'video'],
       title: 'Download Media',
       id: 'download-media'
     });
     chrome.contextMenus.create({
+      contexts: ['audio', 'video'],
+      title: 'Store Media',
+      id: 'store-media'
+    });
+    chrome.contextMenus.create({
       contexts: ['page'],
       title: 'Extract then Download Media Links',
-      id: 'extract-media'
+      id: 'extract-requests'
     });
     chrome.contextMenus.create({
       contexts: ['page'],
       title: 'Extract then Store Media Links',
-      id: 'lazy-extract-media'
+      id: 'store-requests'
     });
   };
   chrome.runtime.onStartup.addListener(startup);
@@ -279,13 +305,16 @@ chrome.contextMenus.onClicked.addListener(info => {
   else if (info.menuItemId === 'store-link') {
     manager.schedlue([info.linkUrl]);
   }
-  else if (info.menuItemId === 'extract-media') {
+  else if (info.menuItemId === 'store-image' || info.menuItemId === 'store-media') {
+    manager.schedlue([info.srcUrl]);
+  }
+  else if (info.menuItemId === 'extract-requests') {
     chrome.tabs.executeScript({
       file: '/data/scripts/collect.js',
       runAt: 'document_start'
     });
   }
-  else if (info.menuItemId === 'lazy-extract-media') {
+  else if (info.menuItemId === 'store-requests') {
     chrome.tabs.executeScript({
       file: '/data/scripts/lazy-collect.js',
       runAt: 'document_start'
