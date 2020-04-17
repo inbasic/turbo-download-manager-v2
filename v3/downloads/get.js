@@ -743,7 +743,7 @@ class NFGet extends FGet { /* extends filename guessing */
       'video/mp4': 'mp4'
     }[mime] || '';
 
-    let name = '';
+    let name = this.properties.filename || '';
     // get name from Content-Disposition
     if (!name && disposition) {
       const tmp = /filename\*=UTF-8''([^;]*)/.exec(disposition);
@@ -764,7 +764,6 @@ class NFGet extends FGet { /* extends filename guessing */
     }
     // get name from URL
     if (!name) {
-      console.log(this.properties);
       const url = this.properties.link.replace(/\/$/, '');
       const tmp = /(title|filename)=([^&]+)/.exec(url);
       if (tmp && tmp.length) {

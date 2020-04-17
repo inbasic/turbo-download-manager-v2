@@ -108,7 +108,8 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
   configs = core.configs; // read back all configs from core after being fixed
   info.core = core;
   downloads.cache[id] = info;
-
+  // use user-defined filename
+  core.properties.filename = options.filename || '';
 
   if (start) {
     core.fetch(options.url);
