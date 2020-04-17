@@ -91,34 +91,6 @@ chrome.runtime.onMessage.addListener(request => {
 document.addEventListener('click', e => {
   const command = e.target.dataset.command;
   if (command === 'add-new') {
-    const next = links => {
-      const msg = links.map(s => '3|' + s).join(', ');
-      const value = window.prompt(`Enter Downloadable Link(s):
-
- -> For multiple jobs, insert the comma-separated list of links.
- -> For threading, prepend with the number
-
-Example:
-3|http://www.google.com, 2|http://www.yahoo.com`, msg);
-      if (value) {
-        // if there is no change, use original links
-        if (msg !== value) {
-          links = value.split(/\s*,\s*/).filter(a => a);
-        }
-
-        chrome.runtime.sendMessage({
-          method: 'add-jobs',
-          jobs: links.map(link => {
-            const re = /^(\d+)\|/;
-            const m = re.exec(link);
-            return {
-              link: link.replace(re, ''),
-              threads: m ? m[1] : 3
-            };
-          })
-        });
-      }
-    };
     const input = document.getElementById('clipboard');
     input.classList.remove('hidden');
     input.focus();
@@ -128,7 +100,10 @@ Example:
     chrome.runtime.sendMessage({
       method: 'extract-links',
       content: input.value
-    }, links => next(links));
+    }, links => chrome.runtime.sendMessage({
+      method: 'open-jobs',
+      jobs: [...links, ...(e.target.links || [])].filter(a => a).map(link => ({link}))
+    }));
   }
   else if (command === 'detach') {
     chrome.tabs.create({
@@ -199,4 +174,16 @@ document.getElementById('entries').addEventListener('command', e => {
       id
     }, () => e.target.remove());
   }
+});
+
+// media links
+chrome.runtime.sendMessage({
+  method: 'collect'
+}, links => {
+  if (links && links.length) {
+    const e = document.querySelector('[data-command="add-new"]');
+    e.dataset.value = links.length;
+    e.links = links;
+  }
+
 });

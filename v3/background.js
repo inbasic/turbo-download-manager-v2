@@ -40,6 +40,22 @@ const notify = e => chrome.notifications.create({
   message: e.message || e
 });
 
+const job = jobs => chrome.storage.local.get({
+  'job-width': 700,
+  'job-height': 500,
+  'job-left': screen.availLeft + Math.round((screen.availWidth - 700) / 2),
+  'job-top': screen.availTop + Math.round((screen.availHeight - 500) / 2)
+}, prefs => {
+  chrome.windows.create({
+    url: chrome.extension.getURL('data/add/index.html?jobs=' + encodeURIComponent(JSON.stringify(jobs))),
+    width: prefs['job-width'],
+    height: prefs['job-height'],
+    left: prefs['job-left'],
+    top: prefs['job-top'],
+    type: 'popup'
+  });
+});
+
 chrome.runtime.onMessage.addListener((request, sender, response) => {
   if (request.method === 'popup_ready') {
     Promise.all([
@@ -77,9 +93,10 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
   }
   else if (request.method === 'add-jobs') {
     if (request.jobs.length) {
-      for (const {link, threads} of request.jobs) {
+      for (const {link, filename, threads} of request.jobs) {
         manager.download({
-          url: link
+          url: link,
+          filename
         }, undefined, {
           ...CONFIG,
           'max-number-of-threads': threads ? Math.min(8, threads) : 3
@@ -92,6 +109,9 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
   }
   else if (request.method === 'store-links') {
     manager.schedlue(request.links);
+  }
+  else if (request.method === 'open-jobs') {
+    job(request.jobs);
   }
   else if (request.method === 'extract-links') {
     const re = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\\/%?=~_|!:,.;]*[-A-Z0-9+&@#\\/%=~_|])/gi;
@@ -230,53 +250,51 @@ manager.onChanged.addListener(info => {
   const startup = () => {
     chrome.contextMenus.create({
       contexts: ['selection'],
-      title: 'Extract then Download Links',
-      id: 'extract-links'
-    });
-    chrome.contextMenus.create({
-      contexts: ['selection'],
-      title: 'Extract then Store Links',
-      id: 'store-links'
+      title: 'Extract Links',
+      id: 'extract-links',
+      documentUrlPatterns: ['*://*/*']
     });
     chrome.contextMenus.create({
       contexts: ['link'],
       title: 'Download Link',
-      id: 'download-link'
+      id: 'download-link',
+      documentUrlPatterns: ['*://*/*']
     });
     chrome.contextMenus.create({
       contexts: ['link'],
       title: 'Store Link',
-      id: 'store-link'
+      id: 'store-link',
+      documentUrlPatterns: ['*://*/*']
     });
     chrome.contextMenus.create({
       contexts: ['image'],
       title: 'Download Image',
-      id: 'download-image'
+      id: 'download-image',
+      documentUrlPatterns: ['*://*/*']
     });
     chrome.contextMenus.create({
       contexts: ['image'],
       title: 'Store Image',
-      id: 'store-image'
+      id: 'store-image',
+      documentUrlPatterns: ['*://*/*']
     });
     chrome.contextMenus.create({
       contexts: ['audio', 'video'],
       title: 'Download Media',
-      id: 'download-media'
+      id: 'download-media',
+      documentUrlPatterns: ['*://*/*']
     });
     chrome.contextMenus.create({
       contexts: ['audio', 'video'],
       title: 'Store Media',
-      id: 'store-media'
+      id: 'store-media',
+      documentUrlPatterns: ['*://*/*']
     });
     chrome.contextMenus.create({
       contexts: ['page'],
-      title: 'Extract then Download Media Links',
-      id: 'extract-requests'
-    });
-    chrome.contextMenus.create({
-      contexts: ['page'],
-      title: 'Extract then Store Media Links',
-      id: 'store-requests'
+      title: 'Extract Media Links',
+      id: 'extract-requests',
+      documentUrlPatterns: ['*://*/*']
     });
   };
   chrome.runtime.onStartup.addListener(startup);
@@ -286,12 +304,6 @@ chrome.contextMenus.onClicked.addListener(info => {
   if (info.menuItemId === 'extract-links') {
     chrome.tabs.executeScript({
       file: '/data/scripts/selection.js',
-      runAt: 'document_start'
-    });
-  }
-  else if (info.menuItemId === 'store-links') {
-    chrome.tabs.executeScript({
-      file: '/data/scripts/lazy-selection.js',
       runAt: 'document_start'
     });
   }
@@ -311,12 +323,6 @@ chrome.contextMenus.onClicked.addListener(info => {
   else if (info.menuItemId === 'extract-requests') {
     chrome.tabs.executeScript({
       file: '/data/scripts/collect.js',
-      runAt: 'document_start'
-    });
-  }
-  else if (info.menuItemId === 'store-requests') {
-    chrome.tabs.executeScript({
-      file: '/data/scripts/lazy-collect.js',
       runAt: 'document_start'
     });
   }

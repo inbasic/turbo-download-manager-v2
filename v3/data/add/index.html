@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Add new Jobs :: Turbo Download Manager</title>
+  <link rel="stylesheet" type="text/css" href="index.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<template id="entry">
+  <div class="entry">
+    <input type="text" name="filename" placeholder="Suggested Filename (optional)">
+    <label>Threads: <input type="number" name="threads" min="1" max="8"></label>
+    <input type="text" name="link" placeholder="Downloadable URL (required)" required>
+    <input type="submit" value="Remove" data-command="remove">
+  </div>
+</template>
+<body>
+  <div id="list"></div>
+  <div id="tools">
+    <h1>Add a new Job</h1>
+    <input disabled id="store" type="button" value="Store Link(s)" title="Keep in the list but do not download">
+    <input disabled id="download" type="button" value="Download Link(s)" title="Download right now">
+  </div>
+  <div id="new">
+    <form class="entry">
+      <input type="text" name="filename" placeholder="Suggested Filename (optional)">
+      <label>Threads: <input type="number" name="threads" min="1" max="8" title="This is the maximum simultaneous number of threads that will be used"></label>
+      <input type="text" name="link" placeholder="Downloadable URL (required)" required>
+      <input type="submit" value="Add">
+    </form>
+  </div>
+  <script type="text/javascript" src="index.js"></script>
+</body>
+</html>

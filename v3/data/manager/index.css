@@ -1,6 +1,7 @@
 :root {
   --front: #3c4043;
   --blue: #4a89ef;
+  --dark-blue: #2b5290;
   --green: #00ab8c;
   --white: #fff;
   --gray: #a7a7a7;
@@ -67,4 +68,16 @@ header > span {
   width: 100vw;
   height: 100vh;
   pointer-events: none;
+}
+[data-command="add-new"] {
+  position: relative;
+}
+[data-command="add-new"]:not([data-value=''])::before {
+  content: attr(data-value);
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--dark-blue);
+  padding: 2px 5px;
+  font-size: 10px;
 }
