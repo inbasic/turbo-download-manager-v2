@@ -697,6 +697,52 @@ class NFGet extends FGet { /* extends filename guessing */
   }
   guess(headers) {
     const disposition = headers.get('Content-Disposition');
+    const mime = headers.get('Content-Type').split(';')[0];
+    const fse = {
+      'text/html': 'html',
+      'text/css': 'css',
+      'text/xml': 'xml',
+      'image/gif': 'gif',
+      'image/jpeg': 'jpg',
+      'application/x-javascript': 'js',
+      'application/atom+xml': 'atom',
+      'application/rss+xml': 'rss',
+      'text/plain': 'txt',
+      'text/javascript': 'js',
+      'image/png': 'png',
+      'image/tiff': 'tiff',
+      'image/x-icon': 'ico',
+      'image/x-ms-bmp': 'bmp',
+      'image/svg+xml': 'svg',
+      'image/webp': 'webp',
+      'application/java-archive': 'jar',
+      'application/msword': 'doc',
+      'application/pdf': 'pdf',
+      'application/postscript': 'ps',
+      'application/rtf': 'rtf',
+      'application/vnd.ms-excel': 'xls',
+      'application/vnd.ms-powerpoint': 'ppt',
+      'application/x-7z-compressed': '7z',
+      'application/x-rar-compressed': 'rar',
+      'application/x-shockwave-flash': 'swf',
+      'application/x-xpinstall': 'xpi',
+      'application/xhtml+xml': 'xhtml',
+      'application/zip': 'zip',
+      'application/octet-stream': 'bin',
+      'audio/midi': 'midi',
+      'audio/mpeg': 'mp3',
+      'audio/ogg': 'ogg',
+      'video/3gpp': '3gp',
+      'video/mpeg': 'mpg',
+      'video/quicktime': 'mov',
+      'video/x-flv': 'flv',
+      'video/x-mng': 'mng',
+      'video/x-ms-asf': 'asf',
+      'video/x-ms-wmv': 'wmv',
+      'video/x-msvideo': 'avi',
+      'video/mp4': 'mp4'
+    }[mime] || '';
+
     let name = '';
     // get name from Content-Disposition
     if (!name && disposition) {
@@ -718,6 +764,7 @@ class NFGet extends FGet { /* extends filename guessing */
     }
     // get name from URL
     if (!name) {
+      console.log(this.properties);
       const url = this.properties.link.replace(/\/$/, '');
       const tmp = /(title|filename)=([^&]+)/.exec(url);
       if (tmp && tmp.length) {
@@ -727,7 +774,6 @@ class NFGet extends FGet { /* extends filename guessing */
         name = url.substring(url.lastIndexOf('/') + 1);
       }
       name = decodeURIComponent(name.split('?')[0].split('&')[0]) || 'unknown-name';
-      return name;
     }
     // extracting extension from file name
     const se = /\.\w{2,}$/.exec(name);
@@ -741,6 +787,9 @@ class NFGet extends FGet { /* extends filename guessing */
     // append extension
     if (se && se.length) {
       return name + se[0];
+    }
+    else if (fse) {
+      return name + '.' + fse;
     }
     return name;
   }

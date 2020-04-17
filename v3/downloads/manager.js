@@ -31,6 +31,9 @@ const downloads = {
 };
 
 downloads.download = (options, callback = () => {}, configs = {}, start = true) => {
+  if (!options.filename) {
+    delete options.filename;
+  }
   if (configs['max-number-of-threads'] === 1 && configs['use-native-when-possible']) {
     return chrome.downloads.download(options, callback);
   }
