@@ -87,7 +87,20 @@ class File { /* write to disk */
   }
   async ranges() {
     let downloaded = 0;
-    const objects = await this.objects();
+    const objects = await new Promise((resolve, reject) => {
+      const transaction = this.db.transaction('chunks', 'readonly');
+      const chunks = [];
+      transaction.objectStore('chunks').openCursor().onsuccess = e => {
+        const cursor = e.target.result;
+        if (cursor) {
+          chunks.push(cursor.value);
+          cursor.continue();
+        }
+      };
+      transaction.onerror = e => reject(Error('File.objects, ' + e.target.error));
+      transaction.oncomplete = () => resolve(chunks);
+    });
+
     const rRanges = objects.map(a => [a.offset, a.offset + a.buffer.byteLength]);
     rRanges.sort((a, b) => a[0] - b[0]);
     const ranges = [];
@@ -112,31 +125,53 @@ class File { /* write to disk */
 
     return {ranges, downloaded};
   }
-  objects() {
-    // get data and convert to blob
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction('chunks', 'readonly');
-      const chunks = [];
-      transaction.objectStore('chunks').openCursor().onsuccess = e => {
-        const cursor = e.target.result;
-        if (cursor) {
-          chunks.push(cursor.value);
-          cursor.continue();
+  stream() {
+    const chunks = [];
+    let resolve;
+    const transaction = this.db.transaction('chunks', 'readonly');
+    const request = transaction.objectStore('chunks').openCursor();
+    request.onsuccess = e => {
+      const cursor = e.target.result;
+      if (cursor) {
+        chunks.push(cursor.value.buffer);
+        cursor.continue();
+      }
+      if (resolve) {
+        resolve();
+      }
+    };
+    transaction.onerror = e => {
+      throw Error('File.stream, ' + e.target.error);
+    };
+    return new ReadableStream({
+      pull(controller) {
+        if (chunks.length) {
+          controller.enqueue(chunks.shift());
         }
-      };
-      transaction.onerror = e => reject(Error('File.objects, ' + e.target.error));
-      transaction.oncomplete = () => resolve(chunks);
-    });
-  }
-  blob(type) {
-    return this.objects().then(os => new Blob(os.map(o => o.buffer), {
-      type
-    }));
+        else if (request.readyState === 'done') {
+          controller.close();
+        }
+        else {
+          return new Promise(r => resolve = r).then(() => {
+            const chunk = chunks.shift();
+            if (chunk) {
+              controller.enqueue(chunk);
+            }
+            else {
+              controller.close();
+            }
+          });
+        }
+      }
+    }, {});
   }
   async download(filename = 'unknown', mime, started = () => {}) {
-    // console.log('BLOB STATE', Date());
-    const blob = await this.blob(mime);
-    // console.log('BLOB END', Date());
+    const response = new Response(this.stream(), {
+      headers: {
+        'Content-Type': mime
+      }
+    });
+    const blob = await response.blob();
     const url = URL.createObjectURL(blob);
 
     return new Promise((resolve, reject) => {
@@ -216,6 +251,7 @@ class SGet { /* a single threading get */
     this.observe.connected(response);
     const reader = response.body.getReader();
     for (;;) {
+      await this.pause();
       const {done, value} = await reader.read();
       if (value && value.byteLength) {
         if (this['max-size']) {
@@ -250,13 +286,16 @@ class SGet { /* a single threading get */
     }
     return this.size;
   }
+  pause() {
+    return Promise.resolve();
+  }
   abort() {
     this.controller.abort();
   }
   policy(method, value) {
     if (method === 'abort-when-size-exceeds') {
       if (value < this.size) {
-        throw Error('Download size exceeds the requested size');
+        throw Error('Download size exceeds the requested size.');
       }
       this['max-size'] = value;
     }
@@ -482,6 +521,8 @@ class MGet { /* extends multi-threading */
         }
       }
     });
+    // python servers sometimes return more bytes
+    get.policy('abort-when-size-exceeds', range[1] - range[0] + 1);
     // clone the fetch options and append range value
     try {
       await get.fetch(properties.link, {
@@ -521,7 +562,7 @@ class MGet { /* extends multi-threading */
     }
   }
   resume() {
-    const {properties, configs} = this;;
+    const {properties, configs} = this;
     properties.paused = false;
     properties.errors = 0;
     // revisit segment size

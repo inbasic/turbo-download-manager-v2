@@ -57,13 +57,8 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
     observe: {
       complete(success, error) {
         info.state = success ? 'complete' : 'interrupted';
-        if (success) {
-          core.download(undefined, undefined, native => {
-            post({native});
-            delete downloads.cache[id];
-          });
-        }
-        else {
+
+        const onerror = error => {
           console.warn('Downloading Failed', error);
           info.error = error.message;
           post({
@@ -82,6 +77,16 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
               delete downloads.cache[id];
             }));
           }
+        };
+
+        if (success) {
+          core.download(undefined, undefined, native => {
+            post({native});
+            delete downloads.cache[id];
+          }).catch(onerror);
+        }
+        else {
+          onerror(error);
         }
       },
       paused(current) {
@@ -264,7 +269,7 @@ const manager = {
   },
   erase(query, callback = () => {}) {
     // console.log('manager.erase');
-    manager.search(query, ds => {
+    manager.search(query, (ds = []) => {
       for (const {id} of ds) {
         if (id >= manager.NOT_START_INDEX) {
           delete manager.ncache[id];
@@ -350,6 +355,7 @@ const manager = {
 chrome.storage.sync.get({
   links: []
 }, prefs => {
+  chrome.runtime.lastError;
   if (prefs && prefs.links.length) {
     manager.schedlue(prefs.links, false);
   }

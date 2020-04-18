@@ -84,7 +84,8 @@ h1 {
   grid-template-columns: 1fr min-content min-content;
   grid-gap: 10px;
   align-items: center;
-  margin: 10px;
+  margin: 5px;
+  align-items: end;
 }
 #new .entry input[type=number],
 #new .entry input[type=text] {

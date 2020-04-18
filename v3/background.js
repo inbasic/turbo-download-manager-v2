@@ -136,13 +136,17 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
   else if (request.method === 'collect') {
     chrome.tabs.executeScript({
       code: 'append.links'
-    }, one => chrome.tabs.executeScript({
-      code: `[...document.querySelectorAll('video,audio,video source, audio source')]
-               .map(s => s.src).filter(s => s && s.startsWith('http'))`
-    }, two => {
-      const links = [...one, ...two].flat().filter((s, i, l) => s && l.indexOf(s) === i);
-      response(links);
-    }));
+    }, one => {
+      chrome.runtime.lastError;
+      chrome.tabs.executeScript({
+        code: `[...document.querySelectorAll('video,audio,video source, audio source')]
+                 .map(s => s.src).filter(s => s && s.startsWith('http'))`
+      }, two => {
+        chrome.runtime.lastError;
+        const links = [...(one || []), ...(two || [])].flat().filter((s, i, l) => s && l.indexOf(s) === i);
+        response(links);
+      });
+    });
     return true;
   }
   else if (request.method === 'media-available') {
@@ -258,37 +262,37 @@ manager.onChanged.addListener(info => {
       contexts: ['link'],
       title: 'Download Link',
       id: 'download-link',
-      documentUrlPatterns: ['*://*/*']
+      targetUrlPatterns: ['*://*/*']
     });
     chrome.contextMenus.create({
       contexts: ['link'],
       title: 'Store Link',
       id: 'store-link',
-      documentUrlPatterns: ['*://*/*']
+      targetUrlPatterns: ['*://*/*']
     });
     chrome.contextMenus.create({
       contexts: ['image'],
       title: 'Download Image',
       id: 'download-image',
-      documentUrlPatterns: ['*://*/*']
+      targetUrlPatterns: ['*://*/*', 'data:image/*']
     });
     chrome.contextMenus.create({
       contexts: ['image'],
       title: 'Store Image',
       id: 'store-image',
-      documentUrlPatterns: ['*://*/*']
+      targetUrlPatterns: ['*://*/*', 'data:image/*']
     });
     chrome.contextMenus.create({
       contexts: ['audio', 'video'],
       title: 'Download Media',
       id: 'download-media',
-      documentUrlPatterns: ['*://*/*']
+      targetUrlPatterns: ['*://*/*', 'data:video/*']
     });
     chrome.contextMenus.create({
       contexts: ['audio', 'video'],
       title: 'Store Media',
       id: 'store-media',
-      documentUrlPatterns: ['*://*/*']
+      targetUrlPatterns: ['*://*/*', 'data:video/*']
     });
     chrome.contextMenus.create({
       contexts: ['page'],
