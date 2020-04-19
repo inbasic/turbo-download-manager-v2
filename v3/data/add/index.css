@@ -70,7 +70,10 @@ h1 {
   overflow: auto;
   position: relative;
 }
-#list:empty::before {
+#list > input[type=submit] {
+  display: none;
+}
+#list > div:empty::before {
   content: 'Your new downloading jobs appear here';
   position: absolute;
   width: 100%;

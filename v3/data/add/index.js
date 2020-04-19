@@ -30,12 +30,12 @@ if (args.has('jobs')) {
   for (const job of jobs) {
     f.appendChild(one(job));
   }
-  document.getElementById('list').appendChild(f);
+  document.querySelector('#list > div').appendChild(f);
   check();
 }
 
 document.getElementById('new').addEventListener('submit', e => {
-  document.getElementById('list').appendChild(one({
+  document.querySelector('#list > div').appendChild(one({
     filename: e.target.querySelector('[name=filename]').value,
     link: e.target.querySelector('[name=link]').value,
     threads: e.target.querySelector('[name=threads]').value || 3
@@ -95,7 +95,8 @@ document.getElementById('list').addEventListener('click', e => {
       }, () => window.close());
     }
   };
-  document.getElementById('download').addEventListener('click', () => {
+  document.getElementById('list').addEventListener('submit', e => {
+    e.preventDefault();
     send('download');
   });
   document.getElementById('store').addEventListener('click', () => {

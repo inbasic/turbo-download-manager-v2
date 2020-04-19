@@ -515,7 +515,12 @@ class MGet { /* extends multi-threading */
     if (!range) { // no segment left
       if (gets.size === 0) {
         properties.paused = true;
-        observe.complete(false, Error('no range left and there is no ongoing thread'));
+        if (properties.downloaded === properties.size) {
+          observe.complete(true);
+        }
+        else {
+          observe.complete(false, Error('no range left and there is no ongoing thread'));
+        }
       }
       return;
     }
