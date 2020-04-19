@@ -251,7 +251,7 @@ class SGet { /* a single threading get */
     this.observe.connected(response);
     const reader = response.body.getReader();
     for (;;) {
-      await this.pause();
+      await this.wait();
       const {done, value} = await reader.read();
       if (value && value.byteLength) {
         if (this['max-size']) {
@@ -286,7 +286,7 @@ class SGet { /* a single threading get */
     }
     return this.size;
   }
-  pause() {
+  wait() {
     return Promise.resolve();
   }
   abort() {
@@ -309,13 +309,18 @@ class MGet { /* extends multi-threading */
     // keeps track of active ranges
     this.ranges = [];
     // active gets
+    const me = this;
     this.gets = new class extends Set {
       delete(o) {
         super.delete(o);
         observe.threads(this.size);
       }
       new(...args) {
-        const get = new SGet(...args);
+        const get = new class extends SGet {
+          wait() {
+            return me.wait();
+          }
+        }(...args);
         super.add(get);
         observe.threads(this.size);
         return get;
@@ -324,9 +329,9 @@ class MGet { /* extends multi-threading */
 
     let paused = true;
     this.properties = {
-      errors: 0, // total number of sequential fails
-      downloaded: 0, // number of bytes that is written to the disk
-      size: 0 // file-size returned by the server
+      'errors': 0, // total number of sequential fails
+      'downloaded': 0, // number of bytes that is written to the disk
+      'size': 0 // file-size returned by the server,
     };
     // current downloading status
     Object.defineProperty(this.properties, 'paused', {
@@ -346,6 +351,7 @@ class MGet { /* extends multi-threading */
       'use-native-when-possible': true,
       'min-segment-size': 1 * 1024 * 1024,
       'max-segment-size': 100 * 1024 * 1024, // max size for a single downloading segment
+      'absolute-max-segment-size': 100 * 1024 * 1024, // no thread size can exceed this value
       'overwrite-segment-size': true, // if true, the segment size will be decided when headers received
       ...configs
     };
@@ -358,6 +364,11 @@ class MGet { /* extends multi-threading */
       error() {}, // called on broken channel
       ...observe
     };
+  }
+  // use this function to pause network access on all threads
+  wait() {
+    console.log('f');
+    return Promise.resolve();
   }
   disk(o) {
     this.properties.downloaded += o.buffer.byteLength;
@@ -444,6 +455,10 @@ class MGet { /* extends multi-threading */
               Math.floor(properties.size / configs['max-number-of-threads'])
             );
           }
+          configs['max-segment-size'] = Math.min(
+            configs['max-segment-size'],
+            configs['absolute-max-segment-size']
+          );
           // Let's do threading
           range = this.range();
           // break this initial get at the end of the first range
@@ -628,7 +643,12 @@ class FGet extends MSGet { /* extends write to disk */
   constructor(...args) {
     super(...args);
     const {observe, configs, properties} = this;
-    configs['max-simultaneous-writes'] = configs['max-simultaneous-writes'] || 3;
+    properties['disk-instances'] = 0;
+    properties['disk-caches'] = []; // temporary storage until disk is ready
+    properties['disk-resolves'] = []; // resolve this array when disk write is ok
+    configs['max-simultaneous-writes'] = configs['max-simultaneous-writes'] || 1;
+    // pause all network activities until this value meets
+    configs['max-number-memory-chunks'] = configs['max-number-memory-chunks'] || 20;
 
     const {complete, headers} = observe;
     // only get called when there is no active disk write
@@ -638,7 +658,7 @@ class FGet extends MSGet { /* extends write to disk */
       if (success === false) {
         complete(...args);
       }
-      else if (instances === 0 && file.opened) { // make sure file is opened
+      else if (properties['disk-instances'] === 0 && file.opened) { // make sure file is opened
         file.ready = true;
         complete(...args);
       }
@@ -651,37 +671,41 @@ class FGet extends MSGet { /* extends write to disk */
     let file = {
       opened: false
     };
-    // temporary storage until disk is ready
-    const caches = [];
+
     const diskerror = e => {
       this.pause();
       complete(false, e);
     };
     // write to disk
-    let instances = 0;
     const disk = async () => {
-      if (instances >= configs['max-simultaneous-writes'] || file.opened === false) {
+      if (properties['disk-instances'] >= configs['max-simultaneous-writes'] || file.opened === false) {
+        this.busy = true;
         return;
       }
-      if (caches.length === 0) {
-        if (instances === 0 && rargs) {
+      if (properties['disk-caches'].length === 0 && properties['disk-resolves'].length === 0) {
+        if (properties['disk-instances'] === 0 && rargs) {
           // console.log('DISK COMPLETE', Date());
           file.ready = true;
           complete(...rargs);
         }
         return;
       }
-      instances += 1;
+      // empty resolve list
+      let resolve;
+      while (resolve = properties['disk-resolves'].shift()) {
+        resolve();
+      }
+      properties['disk-instances'] += 1;
       const objs = [];
-      while (caches.length) {
-        objs.push(caches.pop());
+      while (properties['disk-caches'].length) {
+        objs.push(properties['disk-caches'].pop());
       }
       await file.chunks(...objs).catch(diskerror);
-      instances -= 1;
+      properties['disk-instances'] -= 1;
       disk();
     };
     observe.disk = o => {
-      caches.push(o);
+      properties['disk-caches'].push(o);
       disk(o);
     };
     // open file when headers are ready and check disk space
@@ -693,14 +717,30 @@ class FGet extends MSGet { /* extends write to disk */
         file = properties.file;
       }
       // open file
-      file.open().then(disk).catch(diskerror).then(() => file.meta({
-        link: properties.link,
-        configs
-      }));
+      file.open().then(disk).catch(diskerror).then(() => {
+        // if file is restored, there is no need to add a new meta data
+        if (properties.restored !== false) {
+          file.meta({
+            link: properties.link,
+            configs
+          });
+        }
+      });
       // check disk space
       file.space(properties.size).catch(diskerror);
       headers(...args);
     };
+  }
+  wait() {
+    const {properties, configs} = this;
+    return new Promise(resolve => {
+      if (properties['disk-caches'].length > configs['max-number-memory-chunks']) {
+        properties['disk-resolves'].push(resolve);
+      }
+      else {
+        resolve();
+      }
+    });
   }
   /* download the file to user disk (only call when there is no instance left) */
   async download(un, um, started, verify = false) {
@@ -841,34 +881,64 @@ class SNGet extends NFGet { /* extends session restore */
     this.properties.file = file;
     await file.open();
     const properties = {};
+    this.properties.restored = false;
+
     for (const o of await file.properties()) {
       Object.assign(properties, o);
     }
+    this.properties.link = properties.link;
     if (properties.link === undefined) {
       throw Error('Cannot find link address');
     }
     if (properties.configs) {
       Object.assign(this.configs, properties.configs);
     }
-    // restore ranges
-    const {ranges, downloaded} = await file.ranges();
-
-    // restore response
-    const response = await fetch(properties.link);
-    if (response.ok) {
-      const message = this.support(response);
-      if (message) {
-        throw Error(message);
+    // restore response (optional)
+    try {
+      const response = await fetch(properties.link);
+      if (response.ok) {
+        const message = this.support(response);
+        if (message) {
+          throw Error(message);
+        }
+        this.observe.headers(response);
       }
-      this.ranges = ranges;
-      this.properties.link = properties.link;
-      this.properties.downloaded = downloaded;
-
-      this.observe.headers(response);
     }
-    else {
-      throw Error('server response is not ok');
+    catch (e) {
+      console.warn('Cannot restore headers. Will try on resume');
     }
+  }
+  async resume() {
+    const {observe, properties} = this;
+    try {
+      // seems like the filesize is not yet resolved, lets get head one more time
+      if (!properties.size) {
+        // restore response
+        const response = await fetch(properties.link);
+        if (response.ok) {
+          const message = this.support(response);
+          if (message) {
+            throw Error(message);
+          }
+          this.observe.headers(response);
+        }
+        else {
+          throw Error('Cannot connect to the server');
+        }
+      }
+      if (properties.restored === false) {
+        // restore ranges
+        const {ranges, downloaded} = await properties.file.ranges();
+        this.properties.downloaded = downloaded;
+        this.ranges = ranges;
+        delete properties.restored;
+      }
+    }
+    catch (e) {
+      properties.paused = true;
+      observe.complete(false, Error('cannot resume, ' + e.message));
+    }
+    super.resume();
   }
 }
 window.Get = SNGet;

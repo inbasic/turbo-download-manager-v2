@@ -66,6 +66,7 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
           });
           // we cannot download, let's use native
           if (
+            core.properties.restored !== false &&
             core.properties.downloaded === 0 &&
             configs['use-native-when-possible'] &&
             error.message !== 'USER_CANCELED'
@@ -74,6 +75,10 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
               id: nativeID
             }, ([native]) => {
               post({native});
+              try {
+                downloads.cache[id].core.properties.file.remove();
+              }
+              catch (e) {}
               delete downloads.cache[id];
             }));
           }
@@ -91,6 +96,10 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
       },
       paused(current) {
         info.paused = current;
+        if (current === false) {
+          info.error = '';
+        }
+        info.state = 'in_progress';
         if (current && core.properties.downloaded === core.properties.size && core.properties.downloaded) {
           info.state = 'transfer';
         }

@@ -25,12 +25,16 @@
 const CONFIG = {
   'use-native-when-possible': true,
   'min-segment-size': 100 * 1024,
+  // each fetch could have this size, so the total memory could be
+  // up to 'max-number-of-threads' * 'max-segment-size'
   'max-segment-size': 100 * 1024 * 1024, // max size for a single downloading segment
+  'absolute-max-segment-size': 100 * 1024 * 1024, // no thread size can exceed this value
   'overwrite-segment-size': true,
   'max-number-of-threads': 3,
   'max-retires': 10,
   'speed-over-seconds': 10,
-  'max-simultaneous-writes': 3
+  'max-simultaneous-writes': 3,
+  'max-number-memory-chunks': 500
 };
 
 const notify = e => chrome.notifications.create({

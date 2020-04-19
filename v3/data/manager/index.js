@@ -36,6 +36,7 @@ const icon = d => {
 icon.cache = {};
 
 const entry = d => {
+  console.log(d);
   const e = document.createElement('download-item');
   e.id = d.id;
   e.once(d);

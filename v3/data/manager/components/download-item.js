@@ -60,7 +60,7 @@ class DownloadItem extends HTMLElement {
         .entry[data-state="in_progress"]:not([data-paused="false"]) div[data-id="actions"] [data-command="pause"] {
           display: none;
         }
-        .entry:not([data-state="in_progress"]) div[data-id="actions"] [data-command="resume"],
+        .entry:not([data-state="in_progress"]):not([data-state="interrupted"]) div[data-id="actions"] [data-command="resume"],
         .entry[data-state="in_progress"]:not([data-paused="true"]) div[data-id="actions"] [data-command="resume"] {
           display: none;
         }
@@ -149,7 +149,7 @@ class DownloadItem extends HTMLElement {
           color: var(--blue);
         }
         .entry[data-state="complete"][data-exists="false"] span[data-id=name],
-        .entry[data-state="interrupted"] span[data-id=name] {
+        .entry[data-state="0"] span[data-id=name] {
           text-decoration: line-through;
           color: inherit;
           cursor: default;
