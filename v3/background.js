@@ -36,6 +36,15 @@ const CONFIG = {
   'max-simultaneous-writes': 3,
   'max-number-memory-chunks': 500
 };
+// read user configs
+{
+  const startup = () => chrome.storage.local.get({
+    'internal-get-configs': {}
+  }, prefs => Object.assign(CONFIG, prefs['internal-get-configs']));
+  chrome.runtime.onStartup.addListener(startup);
+  chrome.runtime.onInstalled.addListener(startup);
+}
+
 
 const notify = e => chrome.notifications.create({
   type: 'basic',
@@ -206,7 +215,7 @@ const update = {
         if (ds.some(d => d.paused === false)) {
           update.id = setTimeout(() => update.perform(), 1000);
         }
-        const dsb = ds.filter(d => d.totalBytes > 0);
+        const dsb = ds.filter(d => d.totalBytes > 0 && d.restored !== false);
         const bytesReceived = dsb.reduce((p, c) => p + c.bytesReceived, 0);
         const totalBytes = dsb.reduce((p, c) => p + c.totalBytes, 0);
         chrome.browserAction.setBadgeText({

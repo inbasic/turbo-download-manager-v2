@@ -10,6 +10,7 @@ const check = () => {
   document.getElementById('download').disabled = entries.length === 0;
 
   document.title = 'Number of Jobs: ' + entries.length;
+  document.body.dataset.count = entries.length;
 };
 
 const one = job => {
@@ -98,6 +99,9 @@ document.getElementById('list').addEventListener('click', e => {
   document.getElementById('list').addEventListener('submit', e => {
     e.preventDefault();
     send('download');
+  });
+  document.getElementById('download').addEventListener('click', () => {
+    document.getElementById('list').dispatchEvent(new Event('submit'));
   });
   document.getElementById('store').addEventListener('click', () => {
     send('store');

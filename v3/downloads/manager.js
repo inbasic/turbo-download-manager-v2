@@ -203,7 +203,7 @@ const manager = {
       return r;
     });
     const object = ({id, state, exists, paused, core, error}) => {
-      const {mime, downloaded, size, filename = '', finalUrl, link} = core.properties;
+      const {mime, downloaded, size, filename = '', finalUrl, link, restored} = core.properties;
       return {
         id,
         state,
@@ -217,7 +217,8 @@ const manager = {
         sections: sections(core),
         speed: core.speed(),
         threads: core.gets.size,
-        error
+        error,
+        restored
       };
     };
     if (options.id && options.id >= manager.NOT_START_INDEX) {

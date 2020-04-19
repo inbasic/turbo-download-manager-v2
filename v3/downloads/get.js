@@ -166,7 +166,8 @@ class File { /* write to disk */
     }, {});
   }
   async download(filename = 'unknown', mime, started = () => {}) {
-    const response = new Response(this.stream(), {
+    const stream = this.stream();
+    const response = new Response(stream, {
       headers: {
         'Content-Type': mime
       }
@@ -367,7 +368,6 @@ class MGet { /* extends multi-threading */
   }
   // use this function to pause network access on all threads
   wait() {
-    console.log('f');
     return Promise.resolve();
   }
   disk(o) {
@@ -434,6 +434,20 @@ class MGet { /* extends multi-threading */
       this.ranges.splice(index, 1);
     }
   }
+  fixConfigs() {
+    const {configs, properties} = this;
+
+    if (configs['overwrite-segment-size']) {
+      configs['max-segment-size'] = Math.max(
+        configs['min-segment-size'],
+        Math.floor((properties.size - properties.downloaded) / configs['max-number-of-threads'])
+      );
+    }
+    configs['max-segment-size'] = Math.min(
+      configs['max-segment-size'],
+      configs['absolute-max-segment-size']
+    );
+  }
   /* staring point for new downloads only */
   async fetch(link, headers = {}) {
     const {gets, properties, observe, configs} = this;
@@ -449,16 +463,7 @@ class MGet { /* extends multi-threading */
             return observe.complete(false, Error(e));
           }
           // everything looks fine. Let's fix max-segment-size
-          if (configs['overwrite-segment-size']) {
-            configs['max-segment-size'] = Math.max(
-              configs['min-segment-size'],
-              Math.floor(properties.size / configs['max-number-of-threads'])
-            );
-          }
-          configs['max-segment-size'] = Math.min(
-            configs['max-segment-size'],
-            configs['absolute-max-segment-size']
-          );
+          this.fixConfigs();
           // Let's do threading
           range = this.range();
           // break this initial get at the end of the first range
@@ -586,12 +591,7 @@ class MGet { /* extends multi-threading */
     properties.paused = false;
     properties.errors = 0;
     // revisit segment size
-    if (configs['overwrite-segment-size']) {
-      configs['max-segment-size'] = Math.max(
-        configs['min-segment-size'],
-        Math.floor((properties.size - properties.downloaded) / configs['max-number-of-threads'])
-      );
-    }
+    this.fixConfigs();
     this.thread();
   }
 }
@@ -600,7 +600,6 @@ class MSGet extends MGet { /* extends speed calculation */
     super(...args);
 
     const {configs, properties, observe} = this;
-    configs['speed-over-seconds'] = configs['speed-over-seconds'] || 10;
 
     const states = properties.states = {}; // keep stat objects for each pause period
     const times = [];
@@ -635,6 +634,11 @@ class MSGet extends MGet { /* extends speed calculation */
       paused(bol);
     };
   }
+  fixConfigs() {
+    const {configs} = this;
+    super.fixConfigs();
+    configs['speed-over-seconds'] = configs['speed-over-seconds'] || 10;
+  }
   speed() {
     const bytes = Object.values(this.properties.states);
     return bytes.length ? bytes.reduce((p, c) => p + c, 0) / bytes.length : 0;
@@ -651,9 +655,6 @@ class FGet extends MSGet { /* extends write to disk */
     properties['disk-instances'] = 0;
     properties['disk-caches'] = []; // temporary storage until disk is ready
     properties['disk-resolves'] = []; // resolve this array when disk write is ok
-    configs['max-simultaneous-writes'] = configs['max-simultaneous-writes'] || 1;
-    // pause all network activities until this value meets
-    configs['max-number-memory-chunks'] = configs['max-number-memory-chunks'] || 20;
 
     const {complete, headers} = observe;
     // only get called when there is no active disk write
@@ -735,6 +736,13 @@ class FGet extends MSGet { /* extends write to disk */
       file.space(properties.size).catch(diskerror);
       headers(...args);
     };
+  }
+  fixConfigs() {
+    super.fixConfigs();
+    const {configs} = this;
+    configs['max-simultaneous-writes'] = configs['max-simultaneous-writes'] || 1;
+    // pause all network activities until this value meets
+    configs['max-number-memory-chunks'] = configs['max-number-memory-chunks'] || 20;
   }
   wait() {
     const {properties, configs} = this;
@@ -900,8 +908,12 @@ class SNGet extends NFGet { /* extends session restore */
     }
     // restore response (optional)
     try {
-      const response = await fetch(properties.link);
+      const controller = this.controller = new AbortController();
+      const response = await fetch(properties.link, {
+        signal: controller.signal
+      });
       if (response.ok) {
+        controller.abort();
         const message = this.support(response);
         if (message) {
           throw Error(message);
@@ -915,12 +927,18 @@ class SNGet extends NFGet { /* extends session restore */
   }
   async resume() {
     const {observe, properties} = this;
+    // this causes the UI to change to in_progress so that the user is not clicking on the resume button multiple times
+    properties.paused = false;
     try {
       // seems like the filesize is not yet resolved, lets get head one more time
       if (!properties.size) {
         // restore response
-        const response = await fetch(properties.link);
+        const controller = this.controller = new AbortController();
+        const response = await fetch(properties.link, {
+          signal: controller.signal
+        });
         if (response.ok) {
+          controller.abort();
           const message = this.support(response);
           if (message) {
             throw Error(message);

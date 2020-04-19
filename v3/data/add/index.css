@@ -73,7 +73,7 @@ h1 {
 #list > input[type=submit] {
   display: none;
 }
-#list > div:empty::before {
+body[data-count="0"] #list > div::before {
   content: 'Your new downloading jobs appear here';
   position: absolute;
   width: 100%;
