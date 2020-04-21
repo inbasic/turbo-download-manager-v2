@@ -28,6 +28,7 @@
   "homepage_url": "https://www.add0n.com/turbo-download-manager-v2.html",
   "background": {
     "scripts": [
+      "downloads/file.js",
       "downloads/get.js",
       "downloads/manager.js",
       "background.js"
