@@ -244,7 +244,7 @@ class MGet { /* extends multi-threading */
   }
   /* staring point for new downloads only */
   async fetch(link, headers = {}) {
-    const {gets, properties, observe, configs} = this;
+    const {gets, properties, observe} = this;
     properties.link = link;
     properties.headers = headers;
     const get = gets.new({
@@ -381,7 +381,7 @@ class MGet { /* extends multi-threading */
     }
   }
   resume() {
-    const {properties, configs} = this;
+    const {properties} = this;
     properties.paused = false;
     properties.errors = 0;
     // revisit segment size
@@ -550,14 +550,17 @@ class FGet extends MSGet { /* extends write to disk */
     });
   }
   /* download the file to user disk (only call when there is no instance left) */
-  async download(un, um, started, verify = false) {
-    const {file, filename, mime, size} = this.properties;
+  async download(options, started) {
+    const {configs, properties: {file, filename, mime, size}} = this;
     if (file.ready && file.opened) {
       const download = async () => {
-        await file.download(un || filename || 'unknown', um || mime, started);
+        await file.download({
+          'filename': options.filename || filename || 'unknown',
+          'mime': options.mime || mime
+        }, started);
         await file.remove();
       };
-      if (verify) {
+      if (options.verify) {
         const {ranges, downloaded} = await file.ranges();
         if (downloaded === size && ranges.length === 1) {
           return await download();

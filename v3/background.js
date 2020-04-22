@@ -183,20 +183,20 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
 /* allow external download and store requests */
 chrome.runtime.onMessageExternal.addListener((request, sender, resposne) => {
   if (request.method === 'add-jobs') {
-    if (request.jobs.length) {
-      for (const {link, threads} of request.jobs) {
-        manager.download({
-          url: link
-        }, undefined, {
-          ...CONFIG,
-          'max-number-of-threads': threads ? Math.min(8, threads) : 3
-        });
-      }
+    const {jobs, configs = {}} = request;
+    if (jobs.length) {
+      Promise.all(jobs.map(({link, threads}) => new Promise(resolve => manager.download({
+        url: link
+      }, resolve, {
+        ...CONFIG,
+        'max-number-of-threads': threads ? Math.min(8, threads) : 3,
+        ...configs
+      })))).then(resposne);
+      return true;
     }
     else {
       notify('There is no link to download');
     }
-    resposne(true);
   }
   else if (request.method === 'store-links') {
     manager.schedlue(request.links);

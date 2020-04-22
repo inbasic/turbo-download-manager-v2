@@ -85,7 +85,7 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
         };
 
         if (success) {
-          core.download(undefined, undefined, native => {
+          core.download({}, native => {
             post({native});
             delete downloads.cache[id];
           }).catch(onerror);

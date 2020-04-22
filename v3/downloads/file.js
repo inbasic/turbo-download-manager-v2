@@ -165,11 +165,11 @@ class File { /* write to disk */
       }
     }, {});
   }
-  async download(filename = 'unknown', mime, started = () => {}) {
+  async download(options, started = () => {}) {
     const stream = this.stream();
     const response = new Response(stream, {
       headers: {
-        'Content-Type': mime
+        'Content-Type': options.mime || 'text/plain'
       }
     });
     const blob = await response.blob();
@@ -178,7 +178,7 @@ class File { /* write to disk */
     return new Promise((resolve, reject) => {
       chrome.downloads.download({
         url,
-        filename
+        filename: options.filename || 'unknown'
       }, id => {
         chrome.downloads.search({
           id
