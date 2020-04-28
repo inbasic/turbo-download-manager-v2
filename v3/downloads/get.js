@@ -154,7 +154,6 @@ class MGet { /* extends multi-threading */
       threads() {}, // called when number of active threads changed
       disk() {}, // called when write is required
       paused() {}, // called when pause status changes
-      headers() {}, // called when headers are ready
       complete() {}, // called when downloading ends with or without errors
       error() {}, // called on broken channel
       ...observe
@@ -164,16 +163,18 @@ class MGet { /* extends multi-threading */
   wait() {
     return Promise.resolve();
   }
+  finish(status, error) {
+    this.observe.complete(status, error);
+  }
   disk(o) {
     this.properties.downloaded += o.buffer.byteLength;
-    this.observe.disk(o);
     if (this.properties.downloaded === this.properties.size) {
       this.properties.paused = true;
-      this.observe.complete(true);
+      this.finish(true);
     }
     else if (this.properties.downloaded > this.properties.size) {
       this.pause();
-      this.observe.complete(false, Error('downloaded size exceeds file size'));
+      this.finish(false, Error('downloaded size exceeds file size'));
     }
   }
   /*
@@ -242,6 +243,9 @@ class MGet { /* extends multi-threading */
       configs['absolute-max-segment-size']
     );
   }
+  headers(response) {
+    this.observe.headers(response);
+  }
   /* staring point for new downloads only */
   async fetch(link, headers = {}) {
     const {gets, properties, observe} = this;
@@ -254,7 +258,7 @@ class MGet { /* extends multi-threading */
           const e = this.support(response);
           if (e) {
             this.pause();
-            return observe.complete(false, Error(e));
+            return this.finish(false, Error(e));
           }
           // everything looks fine. Let's fix max-segment-size
           this.fixConfigs();
@@ -263,7 +267,7 @@ class MGet { /* extends multi-threading */
           // break this initial get at the end of the first range
           get.policy('abort-when-size-exceeds', range[1] + 1);
           this.thread();
-          observe.headers(response);
+          this.headers(response);
         }
       }
     });
@@ -279,7 +283,7 @@ class MGet { /* extends multi-threading */
         observe.error(e);
         if (properties.downloaded === 0) {
           properties.paused = true;
-          observe.complete(false, e);
+          this.finish(false, e);
         }
       }
     }
@@ -298,7 +302,7 @@ class MGet { /* extends multi-threading */
     if (properties.errors > configs['max-retires']) { // max retries
       if (gets.size === 0) {
         properties.paused = true;
-        observe.complete(false, Error('max retires reached'));
+        this.finish(false, Error('max retires reached'));
       }
       return;
     }
@@ -307,7 +311,7 @@ class MGet { /* extends multi-threading */
     }
     if (properties.downloaded > properties.size) { // max retries
       properties.paused = true;
-      observe.complete(false, Error('filesize is smaller than downloaded sections'));
+      this.finish(false, Error('filesize is smaller than downloaded sections'));
       return;
     }
     const range = this.range();
@@ -315,10 +319,10 @@ class MGet { /* extends multi-threading */
       if (gets.size === 0) {
         properties.paused = true;
         if (properties.downloaded === properties.size) {
-          observe.complete(true);
+          this.finish(true);
         }
         else {
-          observe.complete(false, Error('no range left and there is no ongoing thread'));
+          this.finish(false, Error('no range left and there is no ongoing thread'));
         }
       }
       return;
@@ -335,7 +339,7 @@ class MGet { /* extends multi-threading */
           }
           else if (response.status !== 206) {
             this.pause();
-            observe.complete(false, Error('response type of a segmented request is not 206'));
+            this.finish(false, Error('response type of a segmented request is not 206'));
           }
         }
       }
@@ -393,48 +397,36 @@ class MSGet extends MGet { /* extends speed calculation */
   constructor(...args) {
     super(...args);
 
-    const {configs, properties, observe} = this;
+    this.properties.stats = {}; // keep stat objects for each pause period
+    this.properties.times = []; // keep stat objects for each pause period
+  }
+  disk(o) {
+    const {configs, properties: {times, stats}} = this;
+    const time = (Date.now() / 1000).toFixed(0).toString();
 
-    const states = properties.states = {}; // keep stat objects for each pause period
-    const times = [];
-    let downloaded = properties.downloaded;
-    Object.defineProperty(properties, 'downloaded', {
-      get() {
-        return downloaded;
-      },
-      set(value) {
-        const bytes = value - downloaded;
-        const time = (Date.now() / 1000).toFixed(0).toString();
-        if (times.indexOf(time) === -1) {
-          times.push(time);
-          states[time] = 0;
-          for (const time of times.splice(0, times.length - configs['speed-over-seconds'])) {
-            delete states[time];
-          }
-        }
-        states[time] += bytes;
-        //
-        downloaded = value;
+    if (times.indexOf(time) === -1) {
+      times.push(time);
+      stats[time] = 0;
+      for (const time of times.splice(0, times.length - configs['speed-over-seconds'])) {
+        delete stats[time];
       }
-    });
-    // overwrite paused observer
-    const {paused} = observe;
-    observe.paused = bol => {
-      if (bol) {
-        for (const time of times) {
-          delete states[time];
-        }
-      }
-      paused(bol);
-    };
+    }
+    stats[time] += o.buffer.byteLength;
+
+    super.disk(o);
+  }
+  resume() {
+    this.properties.stats = {};
+    this.properties.times = [];
+    super.resume();
   }
   fixConfigs() {
     const {configs} = this;
-    super.fixConfigs();
     configs['speed-over-seconds'] = configs['speed-over-seconds'] || 10;
+    super.fixConfigs();
   }
   speed() {
-    const bytes = Object.values(this.properties.states);
+    const bytes = Object.values(this.properties.stats);
     return bytes.length ? bytes.reduce((p, c) => p + c, 0) / bytes.length : 0;
   }
   progress() {
@@ -445,91 +437,91 @@ class MSGet extends MGet { /* extends speed calculation */
 class FGet extends MSGet { /* extends write to disk */
   constructor(...args) {
     super(...args);
-    const {observe, configs, properties} = this;
-    properties['disk-instances'] = 0;
-    properties['disk-caches'] = []; // temporary storage until disk is ready
-    properties['disk-resolves'] = []; // resolve this array when disk write is ok
-
-    const {complete, headers} = observe;
-    // only get called when there is no active disk write
-    let rargs = false; // releasing arguments
-    observe.complete = (...args) => {
-      const success = args[0];
-      if (success === false) {
-        complete(...args);
-      }
-      else if (properties['disk-instances'] === 0 && file.opened) { // make sure file is opened
-        file.ready = true;
-        complete(...args);
-      }
-      else {
-        rargs = args;
-      }
-    };
-
-    // a dummy file
-    let file = {
+    Object.assign(this.properties, {
+      'disk-instances': 0,
+      'disk-caches': [], // temporary storage until disk is ready
+      'disk-resolves': [] // resolve this array when disk write is ok
+    });
+  }
+  disk(o) {
+    this.properties['disk-caches'].push(o);
+    this.diskWrite();
+    super.disk(o);
+  }
+  // write to disk
+  async diskWrite() {
+    const {configs, properties} = this;
+    const file = properties.file || {
       opened: false
     };
-
-    const diskerror = e => {
-      this.pause();
-      complete(false, e);
+    if (properties['disk-instances'] >= configs['max-simultaneous-writes'] || file.opened === false) {
+      return;
+    }
+    if (properties['disk-caches'].length === 0 && properties['disk-resolves'].length === 0) {
+      if (properties['disk-instances'] === 0 && properties.completed) {
+        file.ready = true;
+        super.finish(...properties.completed);
+      }
+      return;
+    }
+    // empty resolve list
+    let resolve;
+    while (resolve = properties['disk-resolves'].shift()) {
+      resolve();
+    }
+    properties['disk-instances'] += 1;
+    const objs = [];
+    while (properties['disk-caches'].length) {
+      objs.push(properties['disk-caches'].pop());
+    }
+    await file.chunks(...objs).catch(e => this.diskError(e));
+    properties['disk-instances'] -= 1;
+    this.diskWrite();
+  }
+  diskError(e) {
+    this.pause();
+    super.finish(false, e);
+  }
+  // postpone "super.finish" until disk writing is over
+  finish(status, error) {
+    const {properties} = this;
+    const file = properties.file || {
+      opened: false
     };
-    // write to disk
-    const disk = async () => {
-      if (properties['disk-instances'] >= configs['max-simultaneous-writes'] || file.opened === false) {
-        this.busy = true;
-        return;
-      }
-      if (properties['disk-caches'].length === 0 && properties['disk-resolves'].length === 0) {
-        if (properties['disk-instances'] === 0 && rargs) {
-          // console.log('DISK COMPLETE', Date());
-          file.ready = true;
-          complete(...rargs);
-        }
-        return;
-      }
-      // empty resolve list
-      let resolve;
-      while (resolve = properties['disk-resolves'].shift()) {
-        resolve();
-      }
-      properties['disk-instances'] += 1;
-      const objs = [];
-      while (properties['disk-caches'].length) {
-        objs.push(properties['disk-caches'].pop());
-      }
-      await file.chunks(...objs).catch(diskerror);
-      properties['disk-instances'] -= 1;
-      disk();
-    };
-    observe.disk = o => {
-      properties['disk-caches'].push(o);
-      disk(o);
-    };
+    if (status === false) {
+      super.finish(status, error);
+    }
+    else if (properties['disk-caches'].length === 0 && properties['disk-instances'] === 0 && file.opened) { // make sure file is opened
+      file.ready = true;
+      super.finish(status, error);
+    }
+    else {
+      this.properties.completed = [status, error];
+      this.diskWrite();
+    }
+  }
+  headers(response) {
+    const {properties, configs} = this;
+    let file = properties.file;
     // open file when headers are ready and check disk space
-    observe.headers = (...args) => {
-      if (properties.file === undefined) {
-        file = properties.file = new File();
+    if (properties.file === undefined) {
+      file = properties.file = new File();
+    }
+    // open file
+    file.open().catch(e => this.diskError(e)).then(() => {
+      this.diskWrite();
+      // if file is restored, there is no need to add a new meta data
+      if (properties.restored !== false) {
+        file.meta({
+          link: properties.link,
+          configs
+        });
       }
-      else {
-        file = properties.file;
-      }
-      // open file
-      file.open().then(disk).catch(diskerror).then(() => {
-        // if file is restored, there is no need to add a new meta data
-        if (properties.restored !== false) {
-          file.meta({
-            link: properties.link,
-            configs
-          });
-        }
-      });
-      // check disk space
-      file.space(properties.size).catch(diskerror);
-      headers(...args);
-    };
+    });
+    // check disk space
+    file.space(properties.size).catch(e => this.diskError(e));
+
+    super.headers(response);
   }
   fixConfigs() {
     super.fixConfigs();
@@ -551,7 +543,7 @@ class FGet extends MSGet { /* extends write to disk */
   }
   /* download the file to user disk (only call when there is no instance left) */
   async download(options, started) {
-    const {configs, properties: {file, filename, mime, size}} = this;
+    const {properties: {file, filename, mime, size}} = this;
     if (file.ready && file.opened) {
       const download = async () => {
         await file.download({
@@ -575,16 +567,10 @@ class FGet extends MSGet { /* extends write to disk */
   }
 }
 class NFGet extends FGet { /* extends filename guessing */
-  constructor(...args) {
-    super(...args);
-
-    const {properties, observe} = this;
-    const {headers} = observe;
-    observe.headers = response => {
-      properties.filename = this.guess(response.headers);
-      properties.mime = response.headers.get('Content-Type');
-      headers(response);
-    };
+  headers(response) {
+    this.properties.filename = this.guess(response.headers);
+    this.properties.mime = response.headers.get('Content-Type');
+    super.headers(response);
   }
   guess(headers) {
     const disposition = headers.get('Content-Disposition');
@@ -715,7 +701,7 @@ class SNGet extends NFGet { /* extends session restore */
         if (message) {
           throw Error(message);
         }
-        this.observe.headers(response);
+        this.headers(response);
       }
     }
     catch (e) {
@@ -723,7 +709,7 @@ class SNGet extends NFGet { /* extends session restore */
     }
   }
   async resume() {
-    const {observe, properties} = this;
+    const {properties} = this;
     // this causes the UI to change to in_progress so that the user is not clicking on the resume button multiple times
     properties.paused = false;
     try {
@@ -740,7 +726,7 @@ class SNGet extends NFGet { /* extends session restore */
           if (message) {
             throw Error(message);
           }
-          this.observe.headers(response);
+          this.headers(response);
         }
         else {
           throw Error('Cannot connect to the server');
@@ -756,33 +742,9 @@ class SNGet extends NFGet { /* extends session restore */
     }
     catch (e) {
       properties.paused = true;
-      observe.complete(false, Error('cannot resume, ' + e.message));
+      this.finish(false, Error('cannot resume, ' + e.message));
     }
     super.resume();
   }
 }
 window.Get = SNGet;
-
-// const link = 'http://localhost:2000/file.dmg';
-// const get = new SNGet({
-//   configs: {
-//     'max-segment-size': 10 * 1024 * 1024, // max size for a single downloading segment
-//     'max-number-of-threads': 5,
-//     'max-retires': 5,
-//     'speed-over-seconds': 10,
-//     'max-simultaneous-writes': 1
-//   },
-//   observe: {
-//     threads: n => console.log('Number of active threads:', n),
-//     complete(success, message) {
-//       console.log('DONE', success, message);
-//       if (success) {
-//         get.download();
-//       }
-//     },
-//     paused: bol => console.log('Paused', bol),
-//     headers: e => console.log('Headers Ready', e),
-//     error: e => console.log('Error Occurred', e)
-//   }
-// });
-// get.fetch(link, {});
