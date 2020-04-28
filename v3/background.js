@@ -148,7 +148,8 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
   }
   else if (request.method === 'collect') {
     chrome.tabs.executeScript({
-      code: 'append.links'
+      code: 'append.links',
+      allFrames: true
     }, one => {
       chrome.runtime.lastError;
       chrome.tabs.executeScript({
