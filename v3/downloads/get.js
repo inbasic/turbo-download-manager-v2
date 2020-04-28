@@ -18,6 +18,51 @@
     Homepage: https://add0n.com/turbo-download-manager-v2.html
 */
 
+const MIME_TYPES = {
+  'text/html': 'html',
+  'text/css': 'css',
+  'text/xml': 'xml',
+  'image/gif': 'gif',
+  'image/jpeg': 'jpg',
+  'application/x-javascript': 'js',
+  'application/atom+xml': 'atom',
+  'application/rss+xml': 'rss',
+  'text/plain': 'txt',
+  'text/javascript': 'js',
+  'image/png': 'png',
+  'image/tiff': 'tiff',
+  'image/x-icon': 'ico',
+  'image/x-ms-bmp': 'bmp',
+  'image/svg+xml': 'svg',
+  'image/webp': 'webp',
+  'application/java-archive': 'jar',
+  'application/msword': 'doc',
+  'application/pdf': 'pdf',
+  'application/postscript': 'ps',
+  'application/rtf': 'rtf',
+  'application/vnd.ms-excel': 'xls',
+  'application/vnd.ms-powerpoint': 'ppt',
+  'application/x-7z-compressed': '7z',
+  'application/x-rar-compressed': 'rar',
+  'application/x-shockwave-flash': 'swf',
+  'application/x-xpinstall': 'xpi',
+  'application/xhtml+xml': 'xhtml',
+  'application/zip': 'zip',
+  'application/octet-stream': 'bin',
+  'audio/midi': 'midi',
+  'audio/mpeg': 'mp3',
+  'audio/ogg': 'ogg',
+  'video/3gpp': '3gp',
+  'video/mpeg': 'mpg',
+  'video/quicktime': 'mov',
+  'video/x-flv': 'flv',
+  'video/x-mng': 'mng',
+  'video/x-ms-asf': 'asf',
+  'video/x-ms-wmv': 'wmv',
+  'video/x-msvideo': 'avi',
+  'video/mp4': 'mp4'
+};
+
 class SGet { /* a single threading get */
   constructor({
     observe,
@@ -543,11 +588,11 @@ class FGet extends MSGet { /* extends write to disk */
   }
   /* download the file to user disk (only call when there is no instance left) */
   async download(options, started) {
-    const {properties: {file, filename, mime, size}} = this;
+    const {properties: {file, filename, fileextension, mime, size}} = this;
     if (file.ready && file.opened) {
       const download = async () => {
         await file.download({
-          'filename': options.filename || filename || 'unknown',
+          'filename': options.filename || (fileextension ? filename + '.' + fileextension : filename) || 'unknown',
           'mime': options.mime || mime
         }, started);
         await file.remove();
@@ -568,106 +613,59 @@ class FGet extends MSGet { /* extends write to disk */
 }
 class NFGet extends FGet { /* extends filename guessing */
   headers(response) {
-    this.properties.filename = this.guess(response.headers);
-    this.properties.mime = response.headers.get('Content-Type');
+    Object.assign(this.properties, this.guess(response.headers), {
+      mime: response.headers.get('Content-Type')
+    });
     super.headers(response);
   }
   guess(headers) {
     const disposition = headers.get('Content-Disposition');
     const mime = headers.get('Content-Type').split(';')[0];
-    const fse = {
-      'text/html': 'html',
-      'text/css': 'css',
-      'text/xml': 'xml',
-      'image/gif': 'gif',
-      'image/jpeg': 'jpg',
-      'application/x-javascript': 'js',
-      'application/atom+xml': 'atom',
-      'application/rss+xml': 'rss',
-      'text/plain': 'txt',
-      'text/javascript': 'js',
-      'image/png': 'png',
-      'image/tiff': 'tiff',
-      'image/x-icon': 'ico',
-      'image/x-ms-bmp': 'bmp',
-      'image/svg+xml': 'svg',
-      'image/webp': 'webp',
-      'application/java-archive': 'jar',
-      'application/msword': 'doc',
-      'application/pdf': 'pdf',
-      'application/postscript': 'ps',
-      'application/rtf': 'rtf',
-      'application/vnd.ms-excel': 'xls',
-      'application/vnd.ms-powerpoint': 'ppt',
-      'application/x-7z-compressed': '7z',
-      'application/x-rar-compressed': 'rar',
-      'application/x-shockwave-flash': 'swf',
-      'application/x-xpinstall': 'xpi',
-      'application/xhtml+xml': 'xhtml',
-      'application/zip': 'zip',
-      'application/octet-stream': 'bin',
-      'audio/midi': 'midi',
-      'audio/mpeg': 'mp3',
-      'audio/ogg': 'ogg',
-      'video/3gpp': '3gp',
-      'video/mpeg': 'mpg',
-      'video/quicktime': 'mov',
-      'video/x-flv': 'flv',
-      'video/x-mng': 'mng',
-      'video/x-ms-asf': 'asf',
-      'video/x-ms-wmv': 'wmv',
-      'video/x-msvideo': 'avi',
-      'video/mp4': 'mp4'
-    }[mime] || '';
 
-    let name = this.properties.filename || '';
+    let filename = this.properties.filename || '';
     // get name from Content-Disposition
-    if (!name && disposition) {
+    if (!filename && disposition) {
       const tmp = /filename\*=UTF-8''([^;]*)/.exec(disposition);
       if (tmp && tmp.length) {
-        name = tmp[1].replace(/["']$/, '').replace(/^["']/, '');
-        name = decodeURIComponent(name);
+        filename = tmp[1].replace(/["']$/, '').replace(/^["']/, '');
+        filename = decodeURIComponent(filename);
       }
     }
-    if (!name && disposition) {
+    if (!filename && disposition) {
       const tmp = /filename=([^;]*)/.exec(disposition);
       if (tmp && tmp.length) {
-        name = tmp[1].replace(/["']$/, '').replace(/^["']/, '');
+        filename = tmp[1].replace(/["']$/, '').replace(/^["']/, '');
       }
     }
-    if (disposition && name) {
-      const arr = [...name].map(v => v.charCodeAt(0)).filter(v => v <= 255);
-      name = (new TextDecoder('UTF-8')).decode(Uint8Array.from(arr));
+    if (disposition && filename) {
+      const arr = [...filename].map(v => v.charCodeAt(0)).filter(v => v <= 255);
+      filename = (new TextDecoder('UTF-8')).decode(Uint8Array.from(arr));
     }
     // get name from URL
-    if (!name) {
+    if (!filename) {
       const url = this.properties.link.replace(/\/$/, '');
       const tmp = /(title|filename)=([^&]+)/.exec(url);
       if (tmp && tmp.length) {
-        name = tmp[2];
+        filename = tmp[2];
       }
       else {
-        name = url.substring(url.lastIndexOf('/') + 1);
+        filename = url.substring(url.lastIndexOf('/') + 1);
       }
-      name = decodeURIComponent(name.split('?')[0].split('&')[0]) || 'unknown-name';
+      filename = decodeURIComponent(filename.split('?')[0].split('&')[0]) || 'unknown-name';
     }
     // extracting extension from file name
-    const se = /\.\w{2,}$/.exec(name);
+    const se = /\.\w{2,}$/.exec(filename);
+    let fileextension = MIME_TYPES[mime];
     if (se && se.length) {
-      name = name.replace(se[0], '');
+      filename = filename.replace(se[0], '');
+      fileextension = se[0].substr(1);
     }
     // removing exceptions
-    name = name.replace(/[\\/:*?"<>|"]/g, '-');
+    filename = filename.replace(/[\\/:*?"<>|"]/g, '-');
     // removing trimming white spaces
-    name = name.trim();
-    // append extension
-    if (se && se.length) {
-      return name + se[0];
-    }
-    else if (fse) {
-      return name + '.' + fse;
-    }
-    return name;
+    filename = filename.trim();
+
+    return {filename, fileextension};
   }
 }
 class SNGet extends NFGet { /* extends session restore */

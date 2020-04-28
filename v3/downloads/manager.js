@@ -111,8 +111,12 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
       },
       headers(response) {
         core.properties.finalUrl = response.url;
+
+        const {filename, fileextension} = core.properties;
         post({
-          filename: {current: core.properties.filename},
+          filename: {
+            current: fileextension ? filename + '.' + fileextension : filename
+          },
           totalBytes: {current: core.properties.size}
         });
       },
@@ -203,13 +207,13 @@ const manager = {
       return r;
     });
     const object = ({id, state, exists, paused, core, error}) => {
-      const {mime, downloaded, size, filename = '', finalUrl, link, restored} = core.properties;
+      const {mime, downloaded, size, filename = '', fileextension, finalUrl, link, restored} = core.properties;
       return {
         id,
         state,
         exists,
         paused,
-        filename,
+        filename: fileextension ? filename + '.' + fileextension : filename,
         finalUrl: finalUrl || link,
         mime,
         bytesReceived: downloaded,
