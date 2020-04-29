@@ -149,13 +149,13 @@ downloads.cancel = (id, callback) => {
   downloads.cache[id].core.pause();
   downloads.cache[id].state = 'interrupted';
   downloads.cache[id].error = 'USER_CANCELED';
-  try {
-    downloads.cache[id].core.properties.file.remove();
-  }
-  catch (e) {
-    console.warn('Cannot remove file', e);
-  }
-  downloads.cache[id].exists = false;
+  // try {
+  //   downloads.cache[id].core.properties.file.remove();
+  // }
+  // catch (e) {
+  //   console.warn('Cannot remove file', e);
+  // }
+  // downloads.cache[id].exists = false;
   downloads.cache[id].core.observe.complete(false, Error('USER_CANCELED'));
   callback();
 };

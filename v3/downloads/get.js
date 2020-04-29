@@ -1017,8 +1017,9 @@ class NFGet extends FGet { /* extends filename guessing */
       else {
         filename = url.substring(url.lastIndexOf('/') + 1);
       }
-      filename = decodeURIComponent(filename.split('?')[0].split('&')[0]) || 'unknown-name';
+      filename = decodeURIComponent(filename.split('?')[0].split('&')[0]);
     }
+    filename = filename || 'unknown';
     // extracting extension from file name
     const se = /\.\w{2,}$/.exec(filename);
     let fileextension = MIME_TYPES[mime];

@@ -36,7 +36,6 @@ const icon = d => {
 icon.cache = {};
 
 const entry = d => {
-  console.log(d);
   const e = document.createElement('download-item');
   e.id = d.id;
   e.once(d);
@@ -95,6 +94,7 @@ document.addEventListener('click', e => {
     const input = document.getElementById('clipboard');
     input.classList.remove('hidden');
     input.focus();
+    input.value = '';
     document.execCommand('paste');
     input.classList.add('hidden');
     // extract links

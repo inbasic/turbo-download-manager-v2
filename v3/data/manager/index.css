@@ -35,6 +35,7 @@ header {
   grid-template-columns: repeat(4, 1fr);
   grid-gap: 1px;
   white-space: nowrap;
+  user-select: none;
 }
 header > span {
   background-color: var(--blue);
@@ -44,8 +45,12 @@ header > span {
 }
 [data-command] {
   cursor: pointer;
+  transition: all 0.2s;
 }
-
+[data-command]:active {
+  opacity: 0.8;
+  transition: 0s;
+}
 #clipboard {
   position: absolute;
 }

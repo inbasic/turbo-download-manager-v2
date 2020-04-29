@@ -42,6 +42,7 @@ document.getElementById('new').addEventListener('submit', e => {
     threads: e.target.querySelector('[name=threads]').value || 3
   }));
   e.preventDefault();
+  document.querySelector('#new [name=link]').value = '';
   document.querySelector('#new [name=link]').dispatchEvent(new Event('input'));
   check();
 });

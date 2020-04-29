@@ -44,10 +44,16 @@ class DownloadItem extends HTMLElement {
         .entry div[data-id="actions"] {
           justify-self: end;
           color: var(--blue);
+          user-select: none;
         }
         .entry div[data-id="actions"] [data-command] {
           margin-left: 5px;
           cursor: pointer;
+          transition: all 0.2s;
+        }
+        .entry div[data-id="actions"] [data-command]:active {
+          opacity: 0.6;
+          transition: all 0;
         }
         .entry div[data-id="actions"] [data-command][data-remote] {
           color: var(--green);
@@ -217,10 +223,10 @@ class DownloadItem extends HTMLElement {
             <span data-remote data-command="pdf-reader">READER</span>
             <span data-remote data-command="json-beautifier">BEAUTIFY</span>
             <span data-remote data-command="zip-manager">EXTRACT</span>
+            <span data-command="cancel">CANCEL</span>
             <span data-command="pause">PAUSE</span>
             <span data-command="resume">RESUME</span>
             <span data-command="start">START</span>
-            <span data-command="cancel">CANCEL</span>
             <span data-command="show">SHOW</span>
             <span data-command="erase">REMOVE</span>
           </div>
@@ -363,7 +369,7 @@ class DownloadItem extends HTMLElement {
     const name = entry.querySelector('[data-id=name]');
     link.textContent = d.error || d.finalUrl;
     link.href = d.finalUrl || d.url;
-    name.title = name.textContent = d.filename.split('/').pop();
+    name.title = name.textContent = d.filename.split(/[\\/]/).pop();
     Object.assign(entry.dataset, {
       mime: d.mime,
       extension: (d.filename.match(/\.([0-9a-z]+)$/i) || ['', ''])[1].toUpperCase()

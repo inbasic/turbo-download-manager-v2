@@ -1,6 +1,6 @@
 :root {
   --front: #3c4043;
-  --blue: #aecdff;
+  --blue: #4a89ef;
   --white: #fff;
   --bg-gray: #efefef;
 }
@@ -13,7 +13,7 @@ body {
   color: var(--front);
   background-color: var(--bg-gray);
   display: grid;
-  grid-template-rows: 1fr min-content min-content;
+  grid-template-rows: min-content min-content min-content 1fr min-content;
 }
 input {
   outline: none;
@@ -29,6 +29,15 @@ input[type=button] {
   background-color: var(--white);
   min-width: 120px;
 }
+input[type=button],
+input[type=submit] {
+  transition: all 0.2s;
+}
+input[type=button]:active,
+input[type=submit]:active {
+  opacity: 0.8;
+  transition: all 0s;
+}
 @media screen and (max-width: 400px) {
   input {
     padding: 10px;
@@ -41,11 +50,10 @@ h1 {
   font-size: 100%;
   font-weight: normal;
   margin: 0;
-}
-@media screen and (max-width: 400px) {
-  h1 {
-    visibility: hidden;
-  }
+  padding: 5px;
+  background-color: var(--blue);
+  color: var(--white);
+  text-align: center;
 }
 
 .entry {
@@ -84,14 +92,10 @@ body[data-count="0"] #list > div::before {
 }
 #tools {
   display: grid;
-  grid-template-columns: 1fr min-content min-content;
+  grid-template-columns: min-content min-content;
   grid-gap: 10px;
   margin: 5px;
-  align-items: end;
-}
-#new .entry input[type=number],
-#new .entry input[type=text] {
-  border-bottom: solid 1px var(--blue);
+  justify-content: end;
 }
 #new .entry input[type=number]:focus,
 #new .entry input[type=text]:focus {

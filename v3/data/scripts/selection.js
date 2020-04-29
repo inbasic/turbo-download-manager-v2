@@ -6,7 +6,14 @@
     const range = selection.getRangeAt(i);
     const f = range.cloneContents();
     div.appendChild(f);
-    rLinks.push(range.commonAncestorContainer.href);
+
+    const n = range.commonAncestorContainer;
+    if (n.nodeType === Node.ELEMENT_NODE) {
+      rLinks.push(n.href);
+    }
+    else {
+      rLinks.push(n.parentNode.href);
+    }
   }
   let links = [...rLinks, ...[...div.querySelectorAll('a')].map(a => a.href)];
 
