@@ -561,6 +561,7 @@ class MGet { /* extends multi-threading */
       ...configs
     };
     this.observe = observe = {
+      headers() {}, // called when number of active threads changed
       threads() {}, // called when number of active threads changed
       disk() {}, // called when write is required
       paused() {}, // called when pause status changes
@@ -685,6 +686,10 @@ class MGet { /* extends multi-threading */
     let range;
     try {
       await get.fetch(link, {headers});
+      if (get.size !== range[1] - range[0] + 1) {
+        this.fix(range, get.size);
+        console.warn('Received size is not equal to the requested size; segment might be corrupted', range, get.size);
+      }
     }
     catch (e) {
       this.fix(range, get.size);
@@ -764,6 +769,11 @@ class MGet { /* extends multi-threading */
           Range: 'bytes=' + range.join('-')
         }
       });
+      if (get.size !== range[1] - range[0] + 1) {
+        // example https://developer.apple.com/streaming/examples/advanced-stream-fmp4.html
+        console.warn('Received size is not equal to the requested size; segment might be corrupted', range, get.size);
+        this.fix(range, get.size);
+      }
     }
     catch (e) {
       if (properties.paused === false) {
@@ -1019,18 +1029,20 @@ class NFGet extends FGet { /* extends filename guessing */
       }
       filename = decodeURIComponent(filename.split('?')[0].split('&')[0]);
     }
-    filename = filename || 'unknown';
     // extracting extension from file name
     const se = /\.\w{2,}$/.exec(filename);
-    let fileextension = MIME_TYPES[mime];
-    if (se && se.length) {
-      filename = filename.replace(se[0], '');
-      fileextension = se[0].substr(1);
+    const fileextension = se && se.length ? se[0].substr(1) : MIME_TYPES[mime];
+    if (fileextension) {
+      const index = filename.lastIndexOf('.' + fileextension);
+      if (index !== -1) {
+        filename = filename.substr(0, index);
+      }
     }
     // removing exceptions
     filename = filename.replace(/[\\/:*?"<>|"]/g, '-');
     // removing trimming white spaces
     filename = filename.trim();
+    filename = filename || 'unknown';
 
     return {filename, fileextension};
   }
