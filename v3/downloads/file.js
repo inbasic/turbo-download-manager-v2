@@ -175,38 +175,47 @@ class File { /* write to disk */
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
 
-    return new Promise((resolve, reject) => {
-      chrome.downloads.download({
-        url,
-        filename: options.filename || 'unknown'
-      }, id => {
-        chrome.downloads.search({
-          id
-        }, ([d]) => started(d));
-        function observe(d) {
-          if (d.id === id && d.state) {
-            if (d.state.current === 'complete' || d.state.current === 'interrupted') {
-              chrome.downloads.onChanged.removeListener(observe);
-              URL.revokeObjectURL(url);
-              if (d.state.current === 'complete') {
-                chrome.downloads.search({id}, ([d]) => {
-                  if (d) {
-                    resolve(d);
-                  }
-                  else {
-                    reject(Error('I am not able to find the downloaded file!'));
-                  }
-                });
-              }
-              else {
-                reject(Error('The downloading job got interrupted'));
-              }
+    const d = options => new Promise((resolve, reject) => chrome.downloads.download(options, id => {
+      const lastError = chrome.runtime.lastError;
+      if (lastError) {
+        return reject(lastError);
+      }
+      resolve(id);
+    }));
+
+    // in case the filename is not valid, just pass the URL
+    return d({
+      url,
+      filename: options.filename || 'unknown'
+    }).catch(() => d({
+      url
+    })).then(id => new Promise((resolve, reject) => {
+      chrome.downloads.search({
+        id
+      }, ([d]) => started(d));
+      function observe(d) {
+        if (d.id === id && d.state) {
+          if (d.state.current === 'complete' || d.state.current === 'interrupted') {
+            chrome.downloads.onChanged.removeListener(observe);
+            URL.revokeObjectURL(url);
+            if (d.state.current === 'complete') {
+              chrome.downloads.search({id}, ([d]) => {
+                if (d) {
+                  resolve(d);
+                }
+                else {
+                  reject(Error('I am not able to find the downloaded file!'));
+                }
+              });
+            }
+            else {
+              reject(Error('The downloading job got interrupted'));
             }
           }
         }
-        chrome.downloads.onChanged.addListener(observe);
-      });
-    });
+      }
+      chrome.downloads.onChanged.addListener(observe);
+    }));
   }
   remove() {
     if (this.db) {

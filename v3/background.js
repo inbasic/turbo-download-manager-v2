@@ -106,15 +106,21 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
   }
   else if (request.method === 'add-jobs') {
     if (request.jobs.length) {
-      for (const {link, filename, threads} of request.jobs) {
-        manager.download({
+      for (const {link, links, filename, threads} of request.jobs) {
+        const job = {
           url: link,
           filename
-        }, undefined, {
+        };
+        if (links) {
+          delete job.url;
+          job.urls = links;
+        }
+        manager.download(job, undefined, {
           ...CONFIG,
           'max-number-of-threads': threads ? Math.min(8, threads) : 3
         });
       }
+      response(true);
     }
     else {
       notify('There is no link to download');
@@ -122,6 +128,8 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
   }
   else if (request.method === 'store-links') {
     manager.schedlue(request.links);
+
+    response(true);
   }
   else if (request.method === 'open-jobs') {
     job(request.jobs);
@@ -171,8 +179,7 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
         '19': 'data/icons/media/19.png',
         '32': 'data/icons/media/32.png',
         '38': 'data/icons/media/38.png',
-        '48': 'data/icons/media/48.png',
-        '64': 'data/icons/media/64.png'
+        '48': 'data/icons/media/48.png'
       }
     });
     chrome.browserAction.setTitle({
@@ -207,6 +214,7 @@ chrome.runtime.onMessageExternal.addListener((request, sender, resposne) => {
 
 const update = {
   id: -1,
+  keepAwake: 'system',
   perform() {
     clearTimeout(update.id);
     manager.search({
@@ -222,11 +230,17 @@ const update = {
         chrome.browserAction.setBadgeText({
           text: totalBytes ? (bytesReceived / totalBytes * 100).toFixed(0) + '%' : ''
         });
+        if (update.keepAwake && chrome.power) {
+          chrome.power.requestKeepAwake(update.keepAwake);
+        }
       }
       else {
         chrome.browserAction.setBadgeText({
           text: ''
         });
+        if (update.keepAwake && chrome.power) {
+          chrome.power.releaseKeepAwake();
+        }
       }
       chrome.runtime.sendMessage({
         method: 'batch-update',
@@ -354,6 +368,37 @@ chrome.contextMenus.onClicked.addListener(info => {
   chrome.runtime.onStartup.addListener(startup);
   chrome.runtime.onInstalled.addListener(startup);
 }
+
+window.webRequest = {
+  observe(d) {
+    if (d.tabId > 0) {
+      chrome.tabs.sendMessage(d.tabId, {
+        method: 'media',
+        link: d.url
+      }, {
+        frameId: d.frameId
+      });
+    }
+  },
+  install() {
+    if (chrome.webRequest) {
+      chrome.webRequest.onBeforeRequest.removeListener(window.webRequest.observe);
+      chrome.webRequest.onBeforeRequest.addListener(window.webRequest.observe, {
+        urls: ['*://*/*'],
+        types: ['media']
+      });
+      chrome.webRequest.onBeforeRequest.addListener(window.webRequest.observe, {
+        urls: [
+          '*://*/*.flv*', '*://*/*.avi*', '*://*/*.wmv*', '*://*/*.mov*', '*://*/*.mp4*',
+          '*://*/*.pcm*', '*://*/*.wav*', '*://*/*.mp3*', '*://*/*.aac*', '*://*/*.ogg*', '*://*/*.wma*',
+          '*://*/*.m3u8*'
+        ],
+        types: ['xmlhttprequest']
+      });
+    }
+  }
+};
+window.webRequest.install();
 
 /* FAQs & Feedback */
 {

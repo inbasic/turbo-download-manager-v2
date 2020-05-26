@@ -20,6 +20,10 @@
 
 'use strict';
 
+if (location.href.indexOf('?popup') !== -1) {
+  document.body.dataset.popup = true;
+}
+
 const icon = d => {
   const i = icon.cache[d.mime];
   if (i) {

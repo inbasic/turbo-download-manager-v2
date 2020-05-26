@@ -567,6 +567,8 @@ class MGet { /* extends multi-threading */
       paused() {}, // called when pause status changes
       complete() {}, // called when downloading ends with or without errors
       error() {}, // called on broken channel
+      file() {}, // called when file is created
+      extra() {}, // called when extra is ready
       ...observe
     };
   }
@@ -860,7 +862,8 @@ class FGet extends MSGet { /* extends write to disk */
     Object.assign(this.properties, {
       'disk-instances': 0,
       'disk-caches': [], // temporary storage until disk is ready
-      'disk-resolves': [] // resolve this array when disk write is ok
+      'disk-resolves': [], // resolve this array when disk write is ok
+      'disk-write-offset': 0 // this offset is appended to all disk writes
     });
   }
   disk(o) {
@@ -894,7 +897,10 @@ class FGet extends MSGet { /* extends write to disk */
     while (properties['disk-caches'].length) {
       objs.push(properties['disk-caches'].pop());
     }
-    await file.chunks(...objs).catch(e => this.diskError(e));
+    await file.chunks(...objs.map(o => {
+      o.offset += properties['disk-write-offset'];
+      return o;
+    })).catch(e => this.diskError(e));
     properties['disk-instances'] -= 1;
     this.diskWrite();
   }
@@ -921,21 +927,26 @@ class FGet extends MSGet { /* extends write to disk */
     }
   }
   headers(response) {
-    const {properties, configs} = this;
+    const {properties, configs, observe} = this;
     let file = properties.file;
     // open file when headers are ready and check disk space
     if (properties.file === undefined) {
       file = properties.file = new File();
+      observe.file(file);
     }
     // open file
     file.open().catch(e => this.diskError(e)).then(() => {
       this.diskWrite();
       // if file is restored, there is no need to add a new meta data
       if (properties.restored !== false) {
+        const extra = properties.extra || {};
         file.meta({
           link: properties.link,
+          size: properties.size,
+          extra, // extra info to be stored
           configs
         });
+        observe.extra(extra);
       }
     });
     // check disk space
@@ -1090,18 +1101,39 @@ class NFGet extends FGet { /* extends filename guessing */
   }
 }
 class SNGet extends NFGet { /* extends session restore */
+  async service(link) {
+    const controller = this.controller = new AbortController();
+    const response = await fetch(link, {
+      signal: controller.signal
+    });
+    controller.abort();
+    if (response.ok) {
+      return response;
+    }
+    throw Error('response status is not ok');
+  }
   /* id = get.properties.file.id */
   async restore(id) {
     const file = new File(id);
     this.properties.file = file;
+    this.observe.file(file);
     await file.open();
     const properties = {};
     this.properties.restored = false;
 
+    const extra = {};
+    const sizes = {};
     for (const o of await file.properties()) {
       Object.assign(properties, o);
+      sizes[o.link] = o.size || 0;
+      Object.assign(extra, o.extra || {});
     }
     this.properties.link = properties.link;
+    delete sizes[properties.link];
+    this.properties['disk-write-offset'] = Object.values(sizes).reduce((p, c) => p + c, 0);
+    this.properties.extra = extra;
+    this.observe.extra(extra);
+
     if (properties.link === undefined) {
       throw Error('Cannot find link address');
     }
@@ -1110,21 +1142,15 @@ class SNGet extends NFGet { /* extends session restore */
     }
     // restore response (optional)
     try {
-      const controller = this.controller = new AbortController();
-      const response = await fetch(properties.link, {
-        signal: controller.signal
-      });
-      if (response.ok) {
-        controller.abort();
-        const message = this.support(response);
-        if (message) {
-          throw Error(message);
-        }
-        this.headers(response);
+      const response = await this.service(properties.link);
+      const message = this.support(response);
+      if (message) {
+        throw Error(message);
       }
+      this.headers(response);
     }
     catch (e) {
-      console.warn('Cannot restore headers. Will try on resume');
+      console.warn('Cannot restore headers. Will try on resume', e);
     }
   }
   async resume() {
@@ -1154,8 +1180,8 @@ class SNGet extends NFGet { /* extends session restore */
       if (properties.restored === false) {
         // restore ranges
         const {ranges, downloaded} = await properties.file.ranges();
-        this.properties.downloaded = downloaded;
-        this.ranges = ranges;
+        this.properties.downloaded = downloaded - properties['disk-write-offset'];
+        this.ranges = ranges.map(o => o.map(v => Math.max(0, v - properties['disk-write-offset'])));
         delete properties.restored;
       }
     }

@@ -357,19 +357,28 @@ class DownloadItem extends HTMLElement {
       threads: 'sections' in d
     });
   }
+  name(d) {
+    const {entry} = this;
+    const name = entry.querySelector('[data-id=name]');
+    name.title = name.textContent = d.filename.split(/[\\/]/).pop();
+    if (d.m3u8 && d.m3u8.count > 1) {
+      name.textContent = `[${d.m3u8.current}/${d.m3u8.count}] ` + name.textContent;
+    }
+  }
   update(d) {
     this.speed(d);
     this.size(d);
     this.progress(d);
     this.meta(d);
+    this.name(d);
   }
   once(d) {
     const {entry} = this;
     const link = entry.querySelector('[data-id=link]');
-    const name = entry.querySelector('[data-id=name]');
-    link.textContent = d.error || d.finalUrl;
+
+    link.textContent = d.error || d.finalUrl || d.url;
     link.href = d.finalUrl || d.url;
-    name.title = name.textContent = d.filename.split(/[\\/]/).pop();
+
     Object.assign(entry.dataset, {
       mime: d.mime,
       extension: (d.filename.match(/\.([0-9a-z]+)$/i) || ['', ''])[1].toUpperCase()

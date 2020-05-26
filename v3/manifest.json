@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "version": "0.5.5",
+  "version": "0.5.6",
   "name": "Turbo Download Manager (3rd edition)",
   "description": "A download manager with the ability to pause and resume downloads, download remote files, and more.",
 
@@ -12,7 +12,11 @@
     "clipboardRead",
     "contextMenus",
     "unlimitedStorage",
-    "*://*/*"
+    "*://*/*",
+    "power"
+  ],
+  "optional_permissions": [
+    "webRequest"
   ],
   "icons": {
     "16": "data/icons/16.png",
@@ -35,7 +39,7 @@
     ]
   },
   "browser_action": {
-    "default_popup": "data/manager/index.html"
+    "default_popup": "data/manager/index.html?popup"
   },
   "content_scripts":[{
     "matches":["*://*/*"],
@@ -49,5 +53,9 @@
     "gecko": {
       "strict_min_version": "65.0"
     }
+  },
+  "options_ui": {
+    "page": "data/options/index.html",
+    "chrome_style": true
   }
 }

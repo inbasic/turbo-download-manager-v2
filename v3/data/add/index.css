@@ -16,6 +16,7 @@ body {
   grid-template-rows: min-content min-content min-content 1fr min-content;
 }
 input {
+  font-size: 12px;
   outline: none;
   border: none;
   padding: 5px;
@@ -73,6 +74,9 @@ h1 {
 .entry input[type=text]:focus {
   background-color: var(--bg-gray);
 }
+.entry span[name=links]:not(:empty) {
+  margin-right: 10px;
+}
 
 #list {
   overflow: auto;
@@ -92,7 +96,7 @@ body[data-count="0"] #list > div::before {
 }
 #tools {
   display: grid;
-  grid-template-columns: min-content min-content;
+  grid-template-columns: min-content min-content min-content;
   grid-gap: 10px;
   margin: 5px;
   justify-content: end;
@@ -107,6 +111,4 @@ body[data-count="0"] #list > div::before {
   grid-gap: 5px;
   align-items: center;
 }
-#download {
-  font-weight: bold;
-}
+

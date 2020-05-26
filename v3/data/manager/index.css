@@ -25,6 +25,9 @@ body {
   display: flex;
   flex-direction: column;
 }
+body[data-popup=true] {
+  width: 500px;
+}
 @media (pointer: none), (pointer: coarse) {
   body {
     min-width: unset;

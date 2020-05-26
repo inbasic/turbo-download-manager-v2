@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Options :: Turbo Download Manager</title>
+  <style type="text/css">
+    .box {
+      display: grid;
+      grid-template-columns: 1fr min-content;
+    }
+    .note {
+      font-size: 90%;
+      padding: 10px 0;
+      color: #676767;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <label for="webRequest">Observe network for media requests</label>
+    <input type="button" id="webRequest" value="Allow Access">
+  </div>
+  <div class="note">Without this permission, TDM only offers to download media streams that are played in a browser tab. With this permission, the extension observes media related network activities whether they are played or not.</div>
+  <div class="box">
+    <label for="cache.size">Maxium number of media requests to keep for each tab</label>
+    <input type="number" min="1" id="cache.size">
+  </div>
+
+  <p>
+    <input type="button" id="support" value="Support Development">
+    <input type="button" id="reset" value="Factory Reset"> - <input type="button" id="save" value="Save">
+    <span id="toast"></span>
+  </p>
+  <script type="text/javascript" src="index.js"></script>
+</body>
+</html>

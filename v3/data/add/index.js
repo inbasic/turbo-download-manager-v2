@@ -1,3 +1,4 @@
+/* global m3u8Parser */
 'use strict';
 
 const args = new URLSearchParams(location.search);
@@ -8,6 +9,7 @@ const check = () => {
   const entries = document.querySelectorAll('#list .entry');
   document.getElementById('store').disabled = entries.length === 0;
   document.getElementById('download').disabled = entries.length === 0;
+  document.getElementById('merge').disabled = entries.length < 2;
 
   document.title = 'Number of Jobs: ' + entries.length;
   document.body.dataset.count = entries.length;
@@ -20,6 +22,54 @@ const one = job => {
   clone.querySelector('[name=threads]').value = job.threads || 3;
 
   links.add(job.link);
+
+  if (job.link.indexOf('.m3u8') !== -1) {
+    const span = clone.querySelector('[name=links]');
+    const parse = link => fetch(link).then(r => r.text()).then(content => {
+      const path = (root, rel) => {
+        let a = root.split('/');
+        const b = rel.split('/').filter(a => a);
+        const index = a.indexOf(b[0]);
+        if (index === -1) {
+          a.pop();
+        }
+        else {
+          a = a.slice(0, index);
+        }
+        a.push(rel);
+        return a.join('/');
+      };
+      const parser = new m3u8Parser.Parser();
+      parser.push(content);
+      parser.end();
+      if (parser.manifest && parser.manifest.playlists && parser.manifest.playlists.length) {
+        const index = prompt(
+          'Which HLS streams would you like to get?\n\n' +
+          parser.manifest.playlists.map((o, i) => (i + 1) + '. ' + o.uri).join('\n')
+        );
+        if (index) {
+          const uri = parser.manifest.playlists[Number(index) - 1].uri;
+          if (uri) {
+            if (uri.startsWith('http') === false) {
+              return parse(path(link, uri));
+            }
+            parse(uri);
+          }
+        }
+      }
+      else if (parser.manifest && parser.manifest.segments) {
+        const links = parser.manifest.segments.map(o => {
+          if (o.uri.startsWith('http') === false) {
+            return path(link, o.uri);
+          }
+          return o.uri;
+        }).filter((s, i, l) => l.indexOf(s) === i);
+        span.textContent = 'Segments: ' + links.length;
+        span.links = links;
+      }
+    });
+    parse(job.link);
+  }
 
   return clone;
 };
@@ -49,18 +99,18 @@ document.getElementById('new').addEventListener('submit', e => {
 
 // valid URL
 {
-  const pattern = new RegExp('^(https?:\\/\\/)?' + // protocol
-    '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
-    '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
-    '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
-    '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
-    '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
   document.querySelector('#new [name=link]').addEventListener('input', e => {
     if (links.has(e.target.value)) {
       e.target.setCustomValidity('This URL is already in the list');
     }
     else {
-      e.target.setCustomValidity(pattern.test(e.target.value) ? '' : 'Invalid URL');
+      try {
+        new URL(e.target.value);
+        e.target.setCustomValidity('');
+      }
+      catch (e) {
+        e.target.setCustomValidity('Invalid URL: ' + e.message);
+      }
     }
   });
 }
@@ -79,11 +129,19 @@ document.getElementById('list').addEventListener('click', e => {
 // download
 {
   const send = method => {
-    const jobs = [...document.querySelectorAll('#list .entry')].map(e => ({
-      filename: e.querySelector('[name=filename]').value,
-      link: e.querySelector('[name=link]').value,
-      threads: e.querySelector('[name=threads]').value
-    }));
+    const jobs = [...document.querySelectorAll('#list .entry')].map(e => {
+      const job = {
+        filename: e.querySelector('[name=filename]').value,
+        link: e.querySelector('[name=link]').value,
+        threads: e.querySelector('[name=threads]').value
+      };
+      const links = e.querySelector('[name=links]').links;
+      if (links) {
+        job.links = links;
+        delete job.link;
+      }
+      return job;
+    });
     if (method === 'download') {
       chrome.runtime.sendMessage({
         method: 'add-jobs',

@@ -34,8 +34,14 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
   if (!options.filename) {
     delete options.filename;
   }
-  if (configs['max-number-of-threads'] === 1 && configs['use-native-when-possible']) {
-    return chrome.downloads.download(options, callback);
+  if (typeof options.urls === 'undefined') {
+    if (configs['max-number-of-threads'] === 1 && configs['use-native-when-possible']) {
+      return chrome.downloads.download(options, callback);
+    }
+    options.urls = [options.url];
+  }
+  else {
+    options.url = options.urls[0];
   }
   const id = downloads.index;
   downloads.index += 1;
@@ -46,88 +52,109 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
     };
     downloads.listeners.onChanged.forEach(c => c(o));
   };
-  const info = {
+  const info = downloads.cache[id] = {
     state: 'in_progress', // "in_progress", "interrupted", or "complete"
     exists: true,
     paused: true,
-    id
+    id,
+    links: []
   };
-  const core = new window.Get({
-    configs,
-    observe: {
-      complete(success, error) {
-        info.state = success ? 'complete' : 'interrupted';
 
-        const onerror = error => {
-          console.warn('Downloading Failed', error);
-          info.error = error.message;
-          post({
-            error: {current: info.error}
-          });
-          // we cannot download, let's use native
-          if (
-            core.properties.restored !== false &&
-            core.properties.downloaded === 0 &&
-            configs['use-native-when-possible'] &&
-            error.message !== 'USER_CANCELED'
-          ) {
-            chrome.downloads.download(options, nativeID => chrome.downloads.search({
-              id: nativeID
-            }, ([native]) => {
-              post({native});
-              try {
-                downloads.cache[id].core.properties.file.remove();
-              }
-              catch (e) {}
-              delete downloads.cache[id];
-            }));
+  let core; // keep track of the active core
+  const observe = {
+    file: file => info.file = file,
+    extra: extra => info.links = extra.links || info.links,
+    error: e => console.warn('a fetch request is broken', e)
+  };
+  observe.complete = (success, error) => {
+    const onerror = error => {
+      console.warn('Downloading Failed', error);
+      info.error = error.message;
+      post({
+        error: {current: info.error}
+      });
+      // we cannot download, let's use native
+      if (
+        core.properties.restored !== false &&
+        core.properties.downloaded === 0 &&
+        info.links.length < 2 &&
+        configs['use-native-when-possible'] &&
+        error.message !== 'USER_CANCELED'
+      ) {
+        delete options.urls;
+        chrome.downloads.download(options, nativeID => chrome.downloads.search({
+          id: nativeID
+        }, ([native]) => {
+          post({native});
+          try {
+            info.file.remove();
           }
-        };
+          catch (e) {}
+          delete downloads.cache[id];
+        }));
+      }
+    };
 
-        if (success) {
-          core.download({}, native => {
-            post({native});
-            delete downloads.cache[id];
-          }).catch(onerror);
-        }
-        else {
-          onerror(error);
-        }
-      },
-      paused(current) {
-        info.paused = current;
-        if (current === false) {
-          info.error = '';
-        }
-        info.state = 'in_progress';
-        if (current && core.properties.downloaded === core.properties.size && core.properties.downloaded) {
-          info.state = 'transfer';
-        }
-        post({
-          state: {current: 'transfer'},
-          paused: {current},
-          canResume: {current}
-        });
-      },
-      headers(response) {
-        core.properties.finalUrl = response.url;
+    const index = info.links.indexOf(core.properties.link);
+    if (success && index + 1 === info.links.length) {
+      info.state = 'complete';
+      core.download({}, native => {
+        post({native});
+        delete downloads.cache[id];
+      }).catch(onerror);
+    }
+    else if (success) {
+      const offset = core.properties.size + core.properties['disk-write-offset'];
 
-        const {filename, fileextension} = core.properties;
-        post({
-          filename: {
-            current: fileextension ? filename + '.' + fileextension : filename
-          },
-          totalBytes: {current: core.properties.size}
-        });
+      core = new window.Get({configs, observe});
+      // use user-defined filename
+      core.properties.filename = options.filename || '';
+      core.properties.file = info.file;
+      core.properties['disk-write-offset'] = offset;
+      info.core = core;
+      core.fetch(info.links[index + 1]);
+    }
+    else {
+      info.success = 'interrupted';
+      onerror(error);
+    }
+  };
+  observe.paused = current => {
+    info.paused = current;
+    if (current === false) {
+      info.error = '';
+    }
+    info.state = 'in_progress';
+    if (current && core.properties.downloaded === core.properties.size && core.properties.downloaded) {
+      info.state = 'transfer';
+    }
+    post({
+      state: {current: 'transfer'},
+      paused: {current},
+      canResume: {current}
+    });
+  };
+  observe.headers = response => {
+    core.properties.finalUrl = response.url;
+
+    const {filename, fileextension} = core.properties;
+    post({
+      filename: {
+        current: fileextension ? filename + '.' + fileextension : filename
       },
-      error: e => console.warn('a fetch request is broken', e)
+      totalBytes: {current: core.properties.size}
+    });
+  };
+
+  info.core = core = new window.Get({configs, observe});
+  Object.assign(core.properties, {
+    filename: options.filename || '', // use user-defined filename
+    extra: {
+      links: [...options.urls] // this will cause links to be appended to the db
     }
   });
+
   configs = core.configs; // read back all configs from core after being fixed
-  info.core = core;
-  downloads.cache[id] = info;
-  // use user-defined filename
-  core.properties.filename = options.filename || '';
 
   if (start) {
     core.fetch(options.url);
@@ -206,7 +233,7 @@ const manager = {
       }
       return r;
     });
-    const object = ({id, state, exists, paused, core, error}) => {
+    const object = ({id, state, exists, paused, core, error, links}) => {
       const {mime, downloaded, size, filename = '', fileextension, finalUrl, link, restored} = core.properties;
       return {
         id,
@@ -218,6 +245,10 @@ const manager = {
         mime,
         bytesReceived: downloaded,
         totalBytes: size,
+        m3u8: {
+          current: links.indexOf(finalUrl || link),
+          count: links.length
+        },
         sections: sections(core),
         speed: core.speed(),
         threads: core.gets.size,
