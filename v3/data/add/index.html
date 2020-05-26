@@ -8,7 +8,8 @@
 <template id="entry">
   <div class="entry">
     <input type="text" name="filename" placeholder="Suggested Filename (optional)">
-    <label><span name="links"></span>Threads: <input type="number" name="threads" min="1" max="8"></label>
+    <span name="links"></span>
+    <label>Threads: <input type="number" name="threads" min="1" max="8"></label>
     <input type="text" name="link" placeholder="Downloadable URL (required)" required>
     <input type="submit" value="Remove" data-command="remove">
   </div>
@@ -18,6 +19,7 @@
   <div id="new">
     <form class="entry">
       <input type="text" name="filename" placeholder="Suggested Filename (optional)">
+      <span name="links"></span>
       <label>Threads: <input type="number" placeholder="3" name="threads" min="1" max="8" title="This is the maximum simultaneous number of threads that will be used"></label>
       <input type="text" name="link" placeholder="Downloadable URL (required)" required>
       <input type="submit" value="Add">

@@ -64,8 +64,10 @@ const one = job => {
           }
           return o.uri;
         }).filter((s, i, l) => l.indexOf(s) === i);
-        span.textContent = 'Segments: ' + links.length;
-        span.links = links;
+        if (links.length) {
+          span.textContent = 'Segments: ' + links.length;
+          span.links = links;
+        }
       }
     });
     parse(job.link);
@@ -148,6 +150,20 @@ document.getElementById('list').addEventListener('click', e => {
         jobs
       }, () => window.close());
     }
+    else if (method === 'merge') {
+      if (jobs.some(j => j.links)) {
+        return alert('There is at least one job which is segmented! Cannot merge jobs');
+      }
+      const job = {
+        ...jobs[0],
+        links: jobs.map(j => j.link)
+      };
+      delete job.url;
+      chrome.runtime.sendMessage({
+        method: 'add-jobs',
+        jobs: [job]
+      }, () => window.close());
+    }
     else {
       chrome.runtime.sendMessage({
         method: 'store-links',
@@ -161,6 +177,9 @@ document.getElementById('list').addEventListener('click', e => {
   });
   document.getElementById('download').addEventListener('click', () => {
     document.getElementById('list').dispatchEvent(new Event('submit'));
+  });
+  document.getElementById('merge').addEventListener('click', () => {
+    send('merge');
   });
   document.getElementById('store').addEventListener('click', () => {
     send('store');
