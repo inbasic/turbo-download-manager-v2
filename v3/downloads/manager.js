@@ -196,6 +196,7 @@ downloads.onChanged = {
 };
 
 const manager = {
+  PUASE_ON_META: 3,
   NOT_START_INDEX: 200000,
   nindex: 200000,
   ncache: {},
@@ -234,10 +235,11 @@ const manager = {
       return r;
     });
     const object = ({id, state, exists, paused, core, error, links}) => {
-      const {mime, downloaded, size, filename = '', fileextension, finalUrl, link, restored} = core.properties;
+      const {queue, mime, downloaded, size, filename = '', fileextension, finalUrl, link, restored} = core.properties;
       return {
         id,
         state,
+        queue,
         exists,
         paused,
         filename: fileextension ? filename + '.' + fileextension : filename,
@@ -246,7 +248,7 @@ const manager = {
         bytesReceived: downloaded,
         totalBytes: size,
         m3u8: {
-          current: links.indexOf(finalUrl || link),
+          current: links.indexOf(link || finalUrl),
           count: links.length
         },
         sections: sections(core),
@@ -290,7 +292,6 @@ const manager = {
     }
   },
   resume(id, callback) {
-    // console.log('manager.resume');
     if (id < downloads.NORMAL_START_INDEX) {
       return chrome.downloads.resume(id, callback);
     }
@@ -298,7 +299,6 @@ const manager = {
     callback();
   },
   pause(id, callback) {
-    // console.log('manager.pause');
     if (id < downloads.NORMAL_START_INDEX) {
       return chrome.downloads.pause(id, callback);
     }
@@ -306,14 +306,12 @@ const manager = {
     callback();
   },
   cancel(id, callback) {
-    // console.log('manager.cancel');
     if (id < downloads.NORMAL_START_INDEX) {
       return chrome.downloads.cancel(id, callback);
     }
     downloads.cancel(id, callback);
   },
   erase(query, callback = () => {}) {
-    // console.log('manager.erase');
     manager.search(query, (ds = []) => {
       for (const {id} of ds) {
         if (id >= manager.NOT_START_INDEX) {
@@ -341,14 +339,20 @@ const manager = {
     }, false);
   },
   getFileIcon(id, options, callback) {
-    // console.log('manager.getFileIcon');
     if (id < downloads.NORMAL_START_INDEX) {
       return chrome.downloads.getFileIcon(id, options, callback);
     }
     callback('');
   },
-  download(...args) {
-    downloads.download(...args);
+  download(options, callback = () => {}, configs = {}, start = true) {
+    manager.search({
+      state: 'in_progress'
+    }, ds => {
+      if (start && ds.filter(d => d.paused === false).length >= manager.PUASE_ON_META) {
+        configs['pause-on-meta'] = true;
+      }
+      downloads.download(options, callback, configs, start);
+    }, false);
   },
   onChanged: {
     addListener(c) {
@@ -357,6 +361,26 @@ const manager = {
     }
   }
 };
+// start from queue
+{
+  let id;
+  const next = () => manager.search({
+    state: 'in_progress'
+  }, ds => {
+    if (ds.filter(d => d.paused === false) < manager.PUASE_ON_META) {
+      const d = ds.filter(d => d.paused && d.core && d.core.properties.queue).shift();
+      if (d) {
+        d.core.resume();
+      }
+    }
+  }, false);
+  const c = () => {
+    clearTimeout(id);
+    id = setTimeout(next, 300);
+  };
+  downloads.onChanged.addListener(c);
+  chrome.downloads.onChanged.addListener(c);
+}
 
 // downloads.download({url: 'http://127.0.0.1:2000/df'}, () => {}, {
 //   'max-segment-size': 10 * 1024 * 1024, // max size for a single downloading segment

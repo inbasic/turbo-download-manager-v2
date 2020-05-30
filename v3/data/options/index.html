@@ -16,13 +16,12 @@
 </head>
 <body>
   <div class="box">
-    <label for="webRequest">Observe network for media requests</label>
-    <input type="button" id="webRequest" value="Allow Access">
-  </div>
-  <div class="note">Without this permission, TDM only offers to download media streams that are played in a browser tab. With this permission, the extension observes media related network activities whether they are played or not.</div>
-  <div class="box">
-    <label for="cache.size">Maxium number of media requests to keep for each tab</label>
+    <label for="cache.size">Maximum number of media requests to keep for each tab</label>
     <input type="number" min="1" id="cache.size">
+  </div>
+  <div class="box">
+    <label for="queue.size">Maximum number of simultaneous downloading jobs</label>
+    <input type="number" min="1" id="queue.size">
   </div>
 
   <p>

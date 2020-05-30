@@ -69,7 +69,7 @@ const job = jobs => chrome.storage.local.get({
   });
 });
 
-chrome.runtime.onMessage.addListener((request, sender, response) => {
+const onMessage = (request, sender, response) => {
   if (request.method === 'popup_ready') {
     Promise.all([
       new Promise(resolve => manager.search({state: 'not_started'}, resolve)),
@@ -106,20 +106,24 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
   }
   else if (request.method === 'add-jobs') {
     if (request.jobs.length) {
-      for (const {link, links, filename, threads} of request.jobs) {
-        const job = {
-          url: link,
-          filename
-        };
-        if (links) {
-          delete job.url;
-          job.urls = links;
+      (async () => {
+        for (const {link, links, filename, threads} of request.jobs) {
+          const job = {
+            url: link,
+            filename
+          };
+          if (links) {
+            delete job.url;
+            job.urls = links;
+          }
+          manager.download(job, undefined, {
+            ...CONFIG,
+            ...(request.configs || {}),
+            'max-number-of-threads': threads ? Math.min(8, threads) : 3
+          });
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
-        manager.download(job, undefined, {
-          ...CONFIG,
-          'max-number-of-threads': threads ? Math.min(8, threads) : 3
-        });
-      }
+      })();
       response(true);
     }
     else {
@@ -187,28 +191,13 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
       title: 'Use page context to download or store collected media links'
     });
   }
-});
+};
+chrome.runtime.onMessage.addListener(onMessage);
+
 /* allow external download and store requests */
-chrome.runtime.onMessageExternal.addListener((request, sender, resposne) => {
-  if (request.method === 'add-jobs') {
-    const {jobs, configs = {}} = request;
-    if (jobs.length) {
-      Promise.all(jobs.map(({link, threads}) => new Promise(resolve => manager.download({
-        url: link
-      }, resolve, {
-        ...CONFIG,
-        'max-number-of-threads': threads ? Math.min(8, threads) : 3,
-        ...configs
-      })))).then(resposne);
-      return true;
-    }
-    else {
-      notify('There is no link to download');
-    }
-  }
-  else if (request.method === 'store-links') {
-    manager.schedlue(request.links);
-    resposne(true);
+chrome.runtime.onMessageExternal.addListener((request, sender, response) => {
+  if (request.method === 'add-jobs' || request.method === 'store-links') {
+    onMessage(request, sender, response);
   }
 });
 
@@ -370,24 +359,37 @@ chrome.contextMenus.onClicked.addListener(info => {
 }
 
 window.webRequest = {
-  observe(d) {
-    if (d.tabId > 0) {
-      chrome.tabs.sendMessage(d.tabId, {
-        method: 'media',
-        link: d.url
-      }, {
-        frameId: d.frameId
-      });
+  observe: {
+    type_1(d) {
+      if (d.tabId > 0) {
+        chrome.tabs.sendMessage(d.tabId, {
+          method: 'media',
+          link: d.url
+        }, {
+          frameId: d.frameId
+        });
+      }
+    },
+    type_2(d) {
+      if (d.tabId > 0) {
+        chrome.tabs.sendMessage(d.tabId, {
+          method: 'media',
+          link: d.url
+        }, {
+          frameId: d.frameId
+        });
+      }
     }
   },
   install() {
     if (chrome.webRequest) {
-      chrome.webRequest.onBeforeRequest.removeListener(window.webRequest.observe);
-      chrome.webRequest.onBeforeRequest.addListener(window.webRequest.observe, {
+      chrome.webRequest.onBeforeRequest.removeListener(window.webRequest.observe.type_1);
+      chrome.webRequest.onBeforeRequest.addListener(window.webRequest.observe.type_1, {
         urls: ['*://*/*'],
         types: ['media']
       });
-      chrome.webRequest.onBeforeRequest.addListener(window.webRequest.observe, {
+      chrome.webRequest.onBeforeRequest.removeListener(window.webRequest.observe.type_2);
+      chrome.webRequest.onBeforeRequest.addListener(window.webRequest.observe.type_2, {
         urls: [
           '*://*/*.flv*', '*://*/*.avi*', '*://*/*.wmv*', '*://*/*.mov*', '*://*/*.mp4*',
           '*://*/*.pcm*', '*://*/*.wav*', '*://*/*.mp3*', '*://*/*.aac*', '*://*/*.ogg*', '*://*/*.wma*',
@@ -399,6 +401,20 @@ window.webRequest = {
   }
 };
 window.webRequest.install();
+
+/* Start */
+{
+  const startup = () => chrome.storage.local.get({
+    'queue.size': 3
+  }, prefs => manager.PUASE_ON_META = prefs['queue.size']);
+  chrome.runtime.onStartup.addListener(startup);
+  chrome.runtime.onInstalled.addListener(startup);
+  chrome.storage.onChanged.addListener(ps => {
+    if (ps['queue.size']) {
+      manager.PUASE_ON_META = ps['queue.size'].newValue;
+    }
+  });
+}
 
 /* FAQs & Feedback */
 {

@@ -116,19 +116,26 @@ document.addEventListener('click', e => {
     }, () => window.close());
   }
   else if (command === 'clear-complete' || command === 'clear-interrupted') {
-    chrome.runtime.sendMessage({
-      method: 'erase',
-      query: {
-        state: command.replace('clear-', '')
-      }
-    }, ids => {
-      for (const id of ids) {
-        const e = document.getElementById(id);
-        if (e) {
-          e.remove();
+    if (e.shiftKey) {
+      [...document.querySelectorAll('download-item')].filter(o => o.entry.dataset.paused === 'true').forEach(o => {
+        o.entry.querySelector('[data-command="cancel"]').click();
+      });
+    }
+    else {
+      chrome.runtime.sendMessage({
+        method: 'erase',
+        query: {
+          state: command.replace('clear-', '')
         }
-      }
-    });
+      }, ids => {
+        for (const id of ids) {
+          const e = document.getElementById(id);
+          if (e) {
+            e.remove();
+          }
+        }
+      });
+    }
   }
 });
 
@@ -190,5 +197,30 @@ chrome.runtime.sendMessage({
     e.dataset.value = links.length;
     e.links = links;
   }
-
 });
+
+// confirm
+chrome.permissions.contains({
+  permissions: ['webRequest']
+}, result => {
+  if (result === false) {
+    chrome.storage.local.get({
+      'webRequest.confirm': true
+    }, prefs => {
+      if (prefs['webRequest.confirm']) {
+        document.getElementById('confirm').classList.remove('hidden');
+      }
+    });
+  }
+});
+document.querySelector('#confirm span[data-command=no]').addEventListener('click', () => chrome.storage.local.set({
+  'webRequest.confirm': false
+}));
+document.querySelector('#confirm span[data-command=yes]').addEventListener('click', () => chrome.permissions.request({
+  permissions: ['webRequest']
+}, granted => {
+  document.getElementById('confirm').classList.add('hidden');
+  if (granted) {
+    chrome.runtime.getBackgroundPage(bg => bg.webRequest.install());
+  }
+}));

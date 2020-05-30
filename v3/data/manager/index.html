@@ -9,12 +9,17 @@
 <body>
   <input type="text" id="clipboard" class="hidden">
   <header>
-    <span data-command="clear-complete">Clear Completed</span>
-    <span data-command="clear-interrupted">Clear Failed</span>
+    <span data-command="clear-complete">Completed</span>
+    <span data-command="clear-interrupted" title="Shift + Click to cancel all paused downloads">Failed</span>
     <span data-command="detach">Detach</span>
     <span data-command="add-new" data-value="">Add Jobs</span>
   </header>
   <section id="entries"></section>
+  <div id="confirm" class="hidden" title="Without this permission, TDM only offers to download media streams that are played in a browser tab. With this permission, the extension observes media related network activities whether they are played or not.">
+    <span>Enable Media Link Detection</span>
+    <span data-command="no">No</span>
+    <span data-command="yes">Yes</span>
+  </div>
 
   <script type="text/javascript" src="components/download-item.js"></script>
   <script type="text/javascript" src="index.js"></script>

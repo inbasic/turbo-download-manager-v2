@@ -551,6 +551,7 @@ class MGet { /* extends multi-threading */
       }
     });
     this.configs = {
+      'pause-on-meta': false, // pause download when file is created and meta is written
       'max-number-of-threads': 5,
       'max-retires': 10,
       'use-native-when-possible': true,
@@ -625,6 +626,7 @@ class MGet { /* extends multi-threading */
     }
     this.properties.size = size;
     const type = response.headers.get('Accept-Ranges');
+
     if (type !== 'bytes') {
       return 'FATAL: "Accept-Ranges" header is ' + type;
     }
@@ -657,6 +659,10 @@ class MGet { /* extends multi-threading */
     );
   }
   headers(response) {
+    if (this.configs['pause-on-meta']) {
+      this.properties.queue = true;
+      this.pause();
+    }
     this.observe.headers(response);
   }
   /* staring point for new downloads only */
@@ -750,13 +756,26 @@ class MGet { /* extends multi-threading */
         disk: o => this.disk(o),
         connected: response => {
           if (response.ok && response.status === 206) {
-            this.thread();
-            // since we have a new connection clear the errors count
-            properties.errors = 0;
+            const range = response.headers.get('Content-Range');
+            if (range) {
+              const size = Number(range.split('/')[1]);
+              // on some cases, Content-Range value does not match with the Content-Length
+              if (size !== this.properties.size) {
+                this.pause();
+                return this.finish(false, Error('Content-Range reports different size than Content-Length!'));
+              }
+              this.thread();
+              // since we have a new connection clear the errors count
+              properties.errors = 0;
+            }
+            else {
+              this.pause();
+              this.finish(false, Error('server is not returning the "Content-Range" header'));
+            }
           }
           else if (response.status !== 206) {
             this.pause();
-            this.finish(false, Error('response type of a segmented request is not 206'));
+            this.finish(false, Error('response type of a segmented request is ' + response.status));
           }
         }
       }
@@ -810,6 +829,7 @@ class MGet { /* extends multi-threading */
     const {properties} = this;
     properties.paused = false;
     properties.errors = 0;
+    delete properties['queue'];
     // revisit segment size
     this.fixConfigs();
     this.thread();
@@ -940,6 +960,7 @@ class FGet extends MSGet { /* extends write to disk */
       // if file is restored, there is no need to add a new meta data
       if (properties.restored !== false) {
         const extra = properties.extra || {};
+        delete configs['pause-on-meta']; // prevent queue after restoring
         file.meta({
           link: properties.link,
           size: properties.size,
@@ -1180,8 +1201,12 @@ class SNGet extends NFGet { /* extends session restore */
       if (properties.restored === false) {
         // restore ranges
         const {ranges, downloaded} = await properties.file.ranges();
+
         this.properties.downloaded = downloaded - properties['disk-write-offset'];
-        this.ranges = ranges.map(o => o.map(v => Math.max(0, v - properties['disk-write-offset'])));
+        this.ranges = ranges
+          .map(r => r.map(v => v - properties['disk-write-offset']))
+          .filter(([start, end]) => !(start < 0 && end < 0))
+          .map(r => r.map(v => Math.max(0, v)));
         delete properties.restored;
       }
     }

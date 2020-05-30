@@ -15,6 +15,7 @@ class DownloadItem extends HTMLElement {
           background-color: var(--white);
           margin: 10px;
           padding: 10px;
+          position: relative;
         }
         .entry[data-state=complete] {
           background-color: var(--state-complete);
@@ -24,6 +25,17 @@ class DownloadItem extends HTMLElement {
         }
         .entry[data-paused=true][data-state="in_progress"] {
           background-color: var(--state-paused);
+        }
+        .entry[data-paused=true][data-state="in_progress"][data-queue=true] {
+          background-color: var(--state-queue);
+        }
+        .entry[data-paused=true][data-state="in_progress"][data-queue=true]::after {
+          content: 'In Queue';
+          position: absolute;
+          top: 0;
+          right: 0;
+          background-color: #cee8db;
+          padding: 1px 10px;
         }
         .entry[data-state="transfer"] {
           background-color: var(--state-transfer);
@@ -57,6 +69,16 @@ class DownloadItem extends HTMLElement {
         }
         .entry div[data-id="actions"] [data-command][data-remote] {
           color: var(--green);
+        }
+        @media screen and (max-width: 600px)  {
+          .entry div[data-id="actions"] [data-command][data-remote]:nth-of-type(2) {
+            display: none;
+          }
+        }
+        @media screen and (max-width: 500px)  {
+          .entry div[data-id="actions"] [data-command][data-remote]:nth-of-type(3) {
+            display: none;
+          }
         }
         .entry:not([data-state="in_progress"]) [data-id="speed"],
         .entry[data-state="in_progress"]:not([data-paused="false"]) [data-id="speed"] {
@@ -354,6 +376,7 @@ class DownloadItem extends HTMLElement {
       paused: d.paused,
       state: d.state,
       exists: d.exists,
+      queue: d.queue,
       threads: 'sections' in d
     });
   }
