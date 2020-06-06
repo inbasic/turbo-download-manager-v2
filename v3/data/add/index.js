@@ -44,7 +44,7 @@ const one = job => {
       parser.end();
       if (parser.manifest && parser.manifest.playlists && parser.manifest.playlists.length) {
         const index = prompt(
-          'Which HLS streams would you like to get?\n\n' +
+          'Which HLS stream would you like to get?\n\n' +
           parser.manifest.playlists.map((o, i) => (i + 1) + '. ' + o.uri).join('\n')
         );
         if (index) {

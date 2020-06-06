@@ -6,6 +6,7 @@
     .box {
       display: grid;
       grid-template-columns: 1fr min-content;
+      align-items: start;
     }
     .note {
       font-size: 90%;
@@ -15,14 +16,50 @@
   </style>
 </head>
 <body>
-  <div class="box">
+  <p class="box">
     <label for="cache.size">Maximum number of media requests to keep for each tab</label>
     <input type="number" min="1" id="cache.size">
-  </div>
-  <div class="box">
+  </p>
+  <p class="box">
     <label for="queue.size">Maximum number of simultaneous downloading jobs</label>
     <input type="number" min="1" id="queue.size">
-  </div>
+  </p>
+  <p>
+    <table>
+      <tr>
+        <td><input type="checkbox" id="context.extract-links"></td>
+        <td><label for="context.extract-links">Add context menu item for "Extract Links"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.download-link"></td>
+        <td><label for="context.download-link">Add context menu item for "Download Link"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.store-link"></td>
+        <td><label for="context.store-link">Add context menu item for "Store Link"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.download-image"></td>
+        <td><label for="context.download-image">Add context menu item for "Download Image"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.store-image"></td>
+        <td><label for="context.store-image">Add context menu item for "Store Image"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.download-media"></td>
+        <td><label for="context.download-media">Add context menu item for "Download Media"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.store-media"></td>
+        <td><label for="context.store-media">Add context menu item for "Store Media"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.extract-requests"></td>
+        <td><label for="context.extract-requests">Add context menu item for "Extract Media Links"</label></td>
+      </tr>
+    </table>
+  </p>
 
   <p>
     <input type="button" id="support" value="Support Development">

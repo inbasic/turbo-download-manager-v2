@@ -268,58 +268,79 @@ manager.onChanged.addListener(info => {
 
 // context menu
 {
-  const startup = () => {
-    chrome.contextMenus.create({
-      contexts: ['selection'],
-      title: 'Extract Links',
-      id: 'extract-links',
-      documentUrlPatterns: ['*://*/*']
-    });
-    chrome.contextMenus.create({
-      contexts: ['link'],
-      title: 'Download Link',
-      id: 'download-link',
-      targetUrlPatterns: ['*://*/*']
-    });
-    chrome.contextMenus.create({
-      contexts: ['link'],
-      title: 'Store Link',
-      id: 'store-link',
-      targetUrlPatterns: ['*://*/*']
-    });
-    chrome.contextMenus.create({
-      contexts: ['image'],
-      title: 'Download Image',
-      id: 'download-image',
-      targetUrlPatterns: ['*://*/*', 'data:image/*']
-    });
-    chrome.contextMenus.create({
-      contexts: ['image'],
-      title: 'Store Image',
-      id: 'store-image',
-      targetUrlPatterns: ['*://*/*', 'data:image/*']
-    });
-    chrome.contextMenus.create({
-      contexts: ['audio', 'video'],
-      title: 'Download Media',
-      id: 'download-media',
-      targetUrlPatterns: ['*://*/*', 'data:video/*']
-    });
-    chrome.contextMenus.create({
-      contexts: ['audio', 'video'],
-      title: 'Store Media',
-      id: 'store-media',
-      targetUrlPatterns: ['*://*/*', 'data:video/*']
-    });
-    chrome.contextMenus.create({
-      contexts: ['page'],
-      title: 'Extract Media Links',
-      id: 'extract-requests',
-      documentUrlPatterns: ['*://*/*']
-    });
-  };
+  const startup = () => chrome.storage.local.get({
+    'context.extract-links': true,
+    'context.download-link': true,
+    'context.store-link': true,
+    'context.download-image': true,
+    'context.store-image': true,
+    'context.download-media': true,
+    'context.store-media': true,
+    'context.extract-requests': true
+  }, prefs => {
+    const map = {
+      'extract-links': {
+        contexts: ['selection'],
+        title: 'Extract Links',
+        documentUrlPatterns: ['*://*/*']
+      },
+      'download-link': {
+        contexts: ['link'],
+        title: 'Download Link',
+        targetUrlPatterns: ['*://*/*']
+      },
+      'store-link': {
+        contexts: ['link'],
+        title: 'Store Link',
+        targetUrlPatterns: ['*://*/*']
+      },
+      'download-image': {
+        contexts: ['image'],
+        title: 'Download Image',
+        targetUrlPatterns: ['*://*/*', 'data:image/*']
+      },
+      'store-image': {
+        contexts: ['image'],
+        title: 'Store Image',
+        targetUrlPatterns: ['*://*/*', 'data:image/*']
+      },
+      'download-media': {
+        contexts: ['audio', 'video'],
+        title: 'Download Media',
+        targetUrlPatterns: ['*://*/*', 'data:video/*']
+      },
+      'store-media': {
+        contexts: ['audio', 'video'],
+        title: 'Store Media',
+        targetUrlPatterns: ['*://*/*', 'data:video/*']
+      },
+      'extract-requests': {
+        contexts: ['page'],
+        title: 'Extract Media Links',
+        documentUrlPatterns: ['*://*/*']
+      }
+    };
+    for (const id of Object.keys(map)) {
+      if (prefs['context.' + id]) {
+        chrome.contextMenus.create({
+          ...map[id],
+          id
+        }, () => chrome.runtime.lastError);
+      }
+      else {
+        chrome.contextMenus.remove(id, () => chrome.runtime.lastError);
+      }
+    }
+  });
   chrome.runtime.onStartup.addListener(startup);
   chrome.runtime.onInstalled.addListener(startup);
+  let id;
+  chrome.storage.onChanged.addListener(ps => {
+    if (Object.keys(ps).some(key => key.startsWith('context.'))) {
+      clearTimeout(id);
+      id = setTimeout(startup, 200);
+    }
+  });
 }
 chrome.contextMenus.onClicked.addListener(info => {
   if (info.menuItemId === 'extract-links') {
