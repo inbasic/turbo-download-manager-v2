@@ -43,9 +43,30 @@ const one = job => {
       parser.push(content);
       parser.end();
       if (parser.manifest && parser.manifest.playlists && parser.manifest.playlists.length) {
+        const msgs = [];
+        for (const playlist of parser.manifest.playlists) {
+          let hostname;
+          let pathname;
+          try {
+            const o = new URL(playlist.uri);
+            console.log(o);
+            hostname = o.hostname;
+            pathname = o.pathname;
+          }
+          catch (e) {
+            hostname = pathname = playlist.uri;
+          }
+
+          if (playlist.attributes && playlist.attributes.RESOLUTION) {
+            msgs.push(playlist.attributes.RESOLUTION.width + ' × ' + playlist.attributes.RESOLUTION.height + ' -> ' + hostname);
+          }
+          else {
+            msgs.push(pathname);
+          }
+        }
         const index = prompt(
           'Which HLS stream would you like to get?\n\n' +
-          parser.manifest.playlists.map((o, i) => (i + 1) + '. ' + o.uri).join('\n')
+          msgs.map((s, i) => (i + 1) + '. ' + s).join('\n')
         );
         if (index) {
           const uri = parser.manifest.playlists[Number(index) - 1].uri;
