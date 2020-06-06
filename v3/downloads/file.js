@@ -40,29 +40,35 @@ class File { /* write to disk */
       this.opened = true;
     };
     return new Promise((resolve, reject) => {
-      if (this.memory) {
+      // file is ready
+      if (this.db || this.cache) {
+        resolve();
+      }
+      else if (this.memory) {
         throw Error('per user request');
       }
-      const request = indexedDB.open(this.id, 1);
-      request.onupgradeneeded = () => {
-        // TODO - Remove this line when Firefox supports indexedDB.databases()
-        if (('databases' in indexedDB) === false) {
-          localStorage.setItem('file:' + this.id, true);
-        }
-        // storage for chunks
-        request.result.createObjectStore('chunks', {
-          keyPath: 'offset'
-        });
-        request.result.createObjectStore('meta', {
-          autoIncrement: true
-        });
-      };
-      request.onerror = e => reject(Error('File.open, ' + e.target.error));
-      request.onsuccess = () => {
-        this.db = request.result;
-        this.opened = true;
-        resolve();
-      };
+      else {
+        const request = indexedDB.open(this.id, 1);
+        request.onupgradeneeded = () => {
+          // TODO - Remove this line when Firefox supports indexedDB.databases()
+          if (('databases' in indexedDB) === false) {
+            localStorage.setItem('file:' + this.id, true);
+          }
+          // storage for chunks
+          request.result.createObjectStore('chunks', {
+            keyPath: 'offset'
+          });
+          request.result.createObjectStore('meta', {
+            autoIncrement: true
+          });
+        };
+        request.onerror = e => reject(Error('File.open, ' + e.target.error));
+        request.onsuccess = () => {
+          this.db = request.result;
+          this.opened = true;
+          resolve();
+        };
+      }
     }).catch(alternative);
   }
   meta(...objs) {
