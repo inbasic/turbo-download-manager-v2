@@ -19,9 +19,10 @@
 */
 
 class File { /* write to disk */
-  constructor(id = 'file:' + Math.random()) {
+  constructor(id = 'file:' + Math.random(), memory = false) {
     this.id = id;
     this.opened = false;
+    this.memory = memory;
   }
   async space(size) {
     const {quota, usage} = await navigator.storage.estimate();
@@ -30,7 +31,18 @@ class File { /* write to disk */
     }
   }
   async open() {
+    const alternative = e => {
+      console.warn('Cannot use IndexedDB database, use memory instead', e);
+      this.cache = {
+        meta: [],
+        chunks: []
+      };
+      this.opened = true;
+    };
     return new Promise((resolve, reject) => {
+      if (this.memory) {
+        throw Error('per user request');
+      }
       const request = indexedDB.open(this.id, 1);
       request.onupgradeneeded = () => {
         // TODO - Remove this line when Firefox supports indexedDB.databases()
@@ -51,37 +63,54 @@ class File { /* write to disk */
         this.opened = true;
         resolve();
       };
-    });
+    }).catch(alternative);
   }
   meta(...objs) {
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction('meta', 'readwrite');
-      transaction.oncomplete = resolve;
-      transaction.onerror = e => reject(Error('File.meta, ' + e.target.error));
-      for (const obj of objs) {
-        transaction.objectStore('meta').add(obj);
+      if (this.db) {
+        const transaction = this.db.transaction('meta', 'readwrite');
+        transaction.oncomplete = resolve;
+        transaction.onerror = e => reject(Error('File.meta, ' + e.target.error));
+        for (const obj of objs) {
+          transaction.objectStore('meta').add(obj);
+        }
+      }
+      else {
+        this.cache.meta.push(...objs);
+        resolve();
       }
     });
   }
   properties() {
     // get data and convert to blob
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction('meta', 'readonly');
-      const store = transaction.objectStore('meta');
-      const meta = store.getAll();
-      meta.onsuccess = function() {
-        resolve(meta.result);
-      };
-      meta.onerror = e => reject(Error('File.properties, ' + e.target.error));
+      if (this.db) {
+        const transaction = this.db.transaction('meta', 'readonly');
+        const store = transaction.objectStore('meta');
+        const meta = store.getAll();
+        meta.onsuccess = function() {
+          resolve(meta.result);
+        };
+        meta.onerror = e => reject(Error('File.properties, ' + e.target.error));
+      }
+      else {
+        resolve([]);
+      }
     });
   }
   chunks(...objs) {
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction('chunks', 'readwrite');
-      transaction.oncomplete = resolve;
-      transaction.onerror = e => reject(Error('File.chunks, ' + e.target.error));
-      for (const obj of objs) {
-        transaction.objectStore('chunks').add(obj);
+      if (this.db) {
+        const transaction = this.db.transaction('chunks', 'readwrite');
+        transaction.oncomplete = resolve;
+        transaction.onerror = e => reject(Error('File.chunks, ' + e.target.error));
+        for (const obj of objs) {
+          transaction.objectStore('chunks').add(obj);
+        }
+      }
+      else {
+        this.cache.chunks.push(...objs);
+        resolve();
       }
     });
   }
@@ -128,21 +157,32 @@ class File { /* write to disk */
   stream() {
     const chunks = [];
     let resolve;
-    const transaction = this.db.transaction('chunks', 'readonly');
-    const request = transaction.objectStore('chunks').openCursor();
-    request.onsuccess = e => {
-      const cursor = e.target.result;
-      if (cursor) {
-        chunks.push(cursor.value.buffer);
-        cursor.continue();
-      }
+    let request = {};
+
+    if (this.db) {
+      const transaction = this.db.transaction('chunks', 'readonly');
+      request = transaction.objectStore('chunks').openCursor();
+      request.onsuccess = e => {
+        const cursor = e.target.result;
+        if (cursor) {
+          chunks.push(cursor.value.buffer);
+          cursor.continue();
+        }
+        if (resolve) {
+          resolve();
+        }
+      };
+      transaction.onerror = e => {
+        throw Error('File.stream, ' + e.target.error);
+      };
+    }
+    else {
+      this.cache.chunks.sort((a, b) => a.offset - b.offset).forEach(o => chunks.push(o.buffer));
+      request.readyState = 'done';
       if (resolve) {
         resolve();
       }
-    };
-    transaction.onerror = e => {
-      throw Error('File.stream, ' + e.target.error);
-    };
+    }
     return new ReadableStream({
       pull(controller) {
         if (chunks.length) {
@@ -225,11 +265,16 @@ class File { /* write to disk */
       localStorage.removeItem('file:' + this.id);
     }
     return new Promise((resolve, reject) => {
-      const request = indexedDB.deleteDatabase(this.id);
-      request.onsuccess = () => {
+      if (this.db) {
+        const request = indexedDB.deleteDatabase(this.id);
+        request.onsuccess = () => {
+          resolve();
+        };
+        request.onerror = e => reject(Error(e.target.error));
+      }
+      else {
         resolve();
-      };
-      request.onerror = e => reject(Error(e.target.error));
+      }
     });
   }
 }

@@ -551,14 +551,20 @@ class MGet { /* extends multi-threading */
       }
     });
     this.configs = {
-      'pause-on-meta': false, // pause download when file is created and meta is written
+      // if true, no indexedDB is created and chunks are stored in the browser memory. session cannot be restored
+      'use-memory-disk': false,
+      // pause download when file is created and meta is written
+      'pause-on-meta': false,
       'max-number-of-threads': 5,
       'max-retires': 10,
       'use-native-when-possible': true,
       'min-segment-size': 1 * 1024 * 1024,
-      'max-segment-size': 100 * 1024 * 1024, // max size for a single downloading segment
-      'absolute-max-segment-size': 100 * 1024 * 1024, // no thread size can exceed this value
-      'overwrite-segment-size': true, // if true, the segment size will be decided when headers received
+      // max size for a single downloading segment
+      'max-segment-size': 100 * 1024 * 1024,
+      // no thread size can exceed this value
+      'absolute-max-segment-size': 100 * 1024 * 1024,
+      // if true, the segment size will be decided when headers received
+      'overwrite-segment-size': true,
       ...configs
     };
     this.observe = observe = {
@@ -951,7 +957,7 @@ class FGet extends MSGet { /* extends write to disk */
     let file = properties.file;
     // open file when headers are ready and check disk space
     if (properties.file === undefined) {
-      file = properties.file = new File();
+      file = properties.file = new File(undefined, configs['use-memory-disk']);
       observe.file(file);
     }
     // open file
