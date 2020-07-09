@@ -874,7 +874,11 @@ class MSGet extends MGet { /* extends speed calculation */
     super.fixConfigs();
   }
   speed() {
-    const bytes = Object.values(this.properties.stats);
+    const {configs} = this;
+    const now = Date.now() / 1000;
+    const bytes = Object.entries(this.properties.stats).filter(([key]) => {
+      return (now - Number(key)) < configs['speed-over-seconds'];
+    }).map(([key, value]) => value);
     return bytes.length ? bytes.reduce((p, c) => p + c, 0) / bytes.length : 0;
   }
   progress() {

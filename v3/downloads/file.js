@@ -185,9 +185,10 @@ class File { /* write to disk */
     const size = () => -1 * (options.offsets.shift() - options.offsets[0]);
     const mo = { // keep chunks in memory until length meet the size for decryption
       buffer: new Uint8Array(size()),
-      key: options.keys[0],
+      key: options.keys ? options.keys[0] : null,
       offset: 0
     };
+    console.log(mo);
     let resolve = () => {};
     let reject = () => {};
     let request = {};
@@ -218,6 +219,7 @@ class File { /* write to disk */
         mo.key = options.keys[length - options.offsets.length];
         mo.buffer = new Uint8Array(size());
         mo.offset = 0;
+        console.log(mo);
       }
     };
     decrypt.readyState === options.keys ? 'pending' : 'done';

@@ -276,9 +276,9 @@ class DownloadItem extends HTMLElement {
       }
     });
   }
-  format(bytes) {
+  format(bytes, na = 'NA') {
     if (bytes <= 0) {
-      return 'NA';
+      return na;
     }
     const thresh = 1024;
     if (Math.abs(bytes) < thresh) {
@@ -332,7 +332,7 @@ class DownloadItem extends HTMLElement {
     const {format, entry} = this;
     const e = entry.querySelector('[data-id=speed]');
     if ('speed' in d) {
-      e.textContent = 'Speed: ' + format(speed) + '/s, Threads: ' + threads + ',';
+      e.textContent = 'Speed: ' + format(speed, '0') + '/s, Threads: ' + threads + ',';
     }
     else {
       if (totalBytes > 0) {
