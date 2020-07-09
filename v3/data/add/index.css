@@ -74,10 +74,14 @@ h1 {
 }
 .entry span[name=links]:not(:empty) {
   margin-right: 10px;
+  font-size: 10px;
+  background: #e8e8e8;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
 }
 .entry input[name="link"] {
   grid-column: span 2;
-
 }
 
 #list {

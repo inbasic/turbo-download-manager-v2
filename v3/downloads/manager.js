@@ -36,7 +36,7 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
   }
   if (typeof options.urls === 'undefined') {
     if (configs['max-number-of-threads'] === 1 && configs['use-native-when-possible']) {
-      return chrome.downloads.download(options, callback);
+      return File.prototype.store(options).then(callback);
     }
     options.urls = [options.url];
   }
@@ -57,32 +57,34 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
     exists: true,
     paused: true,
     id,
-    links: []
+    links: options.urls,
+    offsets: [0] // keep track of offsets for segmented requests
   };
 
   let core; // keep track of the active core
   const observe = {
     file: file => info.file = file,
-    extra: extra => info.links = extra.links || info.links,
+    extra: extra => {
+      info.links = extra.links || info.links;
+      info.offsets = extra.offsets || info.offsets;
+    },
     error: e => console.warn('a fetch request is broken', e)
   };
   observe.complete = (success, error) => {
-    const onerror = error => {
-      console.warn('Downloading Failed', error);
+    const onerror = async (error, forced = false) => {
+      console.warn('Downloading failed:', error);
       info.error = error.message;
-      post({
-        error: {current: info.error}
-      });
+      info.state = 'interrupted';
       // we cannot download, let's use native
       if (
+        forced === false &&
         core.properties.restored !== false &&
         core.properties.downloaded === 0 &&
         info.links.length < 2 &&
         configs['use-native-when-possible'] &&
         error.message !== 'USER_CANCELED'
       ) {
-        delete options.urls;
-        chrome.downloads.download(options, nativeID => chrome.downloads.search({
+        File.prototype.store(options).then(nativeID => chrome.downloads.search({
           id: nativeID
         }, ([native]) => {
           post({native});
@@ -93,12 +95,50 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
           delete downloads.cache[id];
         }));
       }
+      else if (
+        info.links.length &&
+        forced === false &&
+        core.properties.downloaded === 0 &&
+        error.message !== 'USER_CANCELED'
+      ) {
+        info.error += '. Using fetch API...';
+        info.state = 'in_progress';
+        if (!info.file) {
+          info.file = new File(undefined, configs['use-memory-disk']);
+          await info.file.open();
+        }
+        fetch(core.properties.link).then(r => {
+          if (r.ok) {
+            r.arrayBuffer().then(buffer => {
+              info.file.chunks({
+                buffer,
+                offset: core.properties['disk-write-offset']
+              }).then(() => {
+                info.file.ready = true;
+                observe.complete(true);
+              }).catch(e => onerror(e, true));
+            });
+          }
+          else {
+            onerror(Error('Failed to fetch'), true);
+          }
+        });
+      }
+      post({
+        error: {current: info.error}
+      });
     };
 
     const index = info.links.indexOf(core.properties.link);
     if (success && index + 1 === info.links.length) {
+      const offset = core.properties.size + core.properties['disk-write-offset'];
+      info.offsets.push(offset);
       info.state = 'complete';
-      core.download({}, native => {
+
+      core.download({
+        offsets: info.offsets,
+        keys: options.keys
+      }, native => {
         post({native});
         delete downloads.cache[id];
       }).catch(onerror);
@@ -111,11 +151,11 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
       core.properties.filename = options.filename || '';
       core.properties.file = info.file;
       core.properties['disk-write-offset'] = offset;
+      info.offsets.push(offset);
       info.core = core;
       core.fetch(info.links[index + 1]);
     }
     else {
-      info.success = 'interrupted';
       onerror(error);
     }
   };

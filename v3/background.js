@@ -53,14 +53,19 @@ const notify = e => chrome.notifications.create({
   message: e.message || e
 });
 
-const job = jobs => chrome.storage.local.get({
+const job = (jobs, tab) => chrome.storage.local.get({
   'job-width': 700,
   'job-height': 500,
   'job-left': screen.availLeft + Math.round((screen.availWidth - 700) / 2),
   'job-top': screen.availTop + Math.round((screen.availHeight - 500) / 2)
-}, prefs => {
+}, async prefs => {
+  tab = tab || await new Promise(resolve => chrome.tabs.query({
+    active: true,
+    currentWindow: true
+  }, tabs => resolve(tabs[0] || {})));
+
   chrome.windows.create({
-    url: chrome.extension.getURL('data/add/index.html?jobs=' + encodeURIComponent(JSON.stringify(jobs))),
+    url: chrome.extension.getURL('data/add/index.html?tabId=' + tab.id + '&jobs=' + encodeURIComponent(JSON.stringify(jobs))),
     width: prefs['job-width'],
     height: prefs['job-height'],
     left: prefs['job-left'],
@@ -83,9 +88,7 @@ const onMessage = (request, sender, response) => {
     return true;
   }
   else if (request.method === 'search') {
-    manager.search(request.query, ds => {
-      response(ds);
-    });
+    manager.search(request.query, response);
     return true;
   }
   else if (request.method === 'erase') {
@@ -107,7 +110,7 @@ const onMessage = (request, sender, response) => {
   else if (request.method === 'add-jobs') {
     if (request.jobs.length) {
       (async () => {
-        for (const {link, links, filename, threads} of request.jobs) {
+        for (const {link, links, keys, filename, threads} of request.jobs) {
           const job = {
             url: link,
             filename
@@ -115,6 +118,7 @@ const onMessage = (request, sender, response) => {
           if (links) {
             delete job.url;
             job.urls = links;
+            job.keys = keys;
           }
           manager.download(job, undefined, {
             ...CONFIG,
@@ -276,7 +280,8 @@ manager.onChanged.addListener(info => {
     'context.store-image': true,
     'context.download-media': true,
     'context.store-media': true,
-    'context.extract-requests': true
+    'context.extract-requests': true,
+    'context.clear-cache': true
   }, prefs => {
     const map = {
       'extract-links': {
@@ -318,6 +323,11 @@ manager.onChanged.addListener(info => {
         contexts: ['page'],
         title: 'Extract Media Links',
         documentUrlPatterns: ['*://*/*']
+      },
+      'clear-cache': {
+        contexts: ['browser_action'],
+        title: 'Clear Detected Media List (for this tab)',
+        documentUrlPatterns: ['*://*/*']
       }
     };
     for (const id of Object.keys(map)) {
@@ -342,8 +352,38 @@ manager.onChanged.addListener(info => {
     }
   });
 }
-chrome.contextMenus.onClicked.addListener(info => {
-  if (info.menuItemId === 'extract-links') {
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'clear-cache') {
+    chrome.tabs.executeScript({
+      code: `
+        if (typeof append !== 'undefined') {
+          append.links = [];
+          append.notified = false;
+        }
+      `,
+      runAt: 'document_start',
+      allFrames: true,
+      matchAboutBlank: true
+    }, () => {
+      if (!chrome.runtime.lastError) {
+        chrome.browserAction.setIcon({
+          tabId: tab.id,
+          path: {
+            '16': 'data/icons/16.png',
+            '19': 'data/icons/19.png',
+            '32': 'data/icons/32.png',
+            '38': 'data/icons/38.png',
+            '48': 'data/icons/48.png'
+          }
+        });
+        chrome.browserAction.setTitle({
+          tabId: tab.id,
+          title: chrome.runtime.getManifest().name
+        });
+      }
+    });
+  }
+  else if (info.menuItemId === 'extract-links') {
     chrome.tabs.executeScript({
       file: '/data/scripts/selection.js',
       runAt: 'document_start'

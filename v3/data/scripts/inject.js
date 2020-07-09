@@ -27,9 +27,26 @@ document.addEventListener('canplay', ({target}) => {
 }, true);
 
 // from bg
-chrome.runtime.onMessage.addListener(request => {
+chrome.runtime.onMessage.addListener((request, sender, response) => {
   if (request.method === 'media') {
     append([request.link]);
+  }
+  else if (request.method === 'fetch') {
+    if (request.type === 'text') {
+      fetch(request.link).then(r => {
+        if (r.ok) {
+          r.text().then(response);
+        }
+      });
+    }
+    else {
+      fetch(request.link).then(r => {
+        if (r.ok) {
+          r.arrayBuffer().then(ab => response([...new Uint8Array(ab)]));
+        }
+      });
+    }
+    return true;
   }
 });
 

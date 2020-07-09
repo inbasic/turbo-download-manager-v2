@@ -19,7 +19,8 @@
 
   chrome.runtime.sendMessage({
     method: 'extract-links',
-    content: div.innerHTML
+    // in case range fails, use selected content
+    content: div.innerHTML || selection.toString()
   }, ls => {
     links.push(...ls);
     links = links.filter((s, i, l) => s && l.indexOf(s) === i);

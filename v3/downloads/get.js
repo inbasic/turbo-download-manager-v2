@@ -628,16 +628,16 @@ class MGet { /* extends multi-threading */
   support(response) {
     const size = Number(response.headers.get('Content-Length'));
     if (!size) {
-      return 'FATAL: server does not report size';
+      return 'Server does not report size';
     }
     this.properties.size = size;
     const type = response.headers.get('Accept-Ranges');
 
     if (type !== 'bytes') {
-      return 'FATAL: "Accept-Ranges" header is ' + type;
+      return '"Accept-Ranges" header is ' + type;
     }
     if (response.headers.get['Length-Computable'] === 'false') {
-      return 'FATAL: "Length-Computable" header is false';
+      return '"Length-Computable" header is false';
     }
   }
   /* fix the range associate with a broken get */
@@ -1004,10 +1004,10 @@ class FGet extends MSGet { /* extends write to disk */
     const {properties: {file, filename, fileextension, mime, size}} = this;
     if (file.ready && file.opened) {
       const download = async () => {
-        await file.download({
-          'filename': options.filename || (fileextension ? filename + '.' + fileextension : filename) || 'unknown',
-          'mime': options.mime || mime
-        }, started);
+        options.filename = options.filename || (fileextension ? filename + '.' + fileextension : filename) || 'unknown';
+        options.mime = options.mime || mime;
+
+        await file.download(options, started);
         await file.remove();
       };
       if (options.verify) {
@@ -1067,6 +1067,7 @@ class NFGet extends FGet { /* extends filename guessing */
       }
       filename = decodeURIComponent(filename.split('?')[0].split('&')[0]);
     }
+    filename = (filename || 'unknown').replace('ts.enc', 'ts');
     // extracting extension from file name
     const se = /\.\w{2,}$/.exec(filename);
     const fileextension = se && se.length ? se[0].substr(1) : MIME_TYPES[mime];
@@ -1078,7 +1079,6 @@ class NFGet extends FGet { /* extends filename guessing */
     }
     // removing exceptions
     filename = filename.trim().replace(/[\\/:*?"<>|]/g, '_').substring(0, 240);
-    filename = filename || 'unknown';
 
     return {filename, fileextension};
   }

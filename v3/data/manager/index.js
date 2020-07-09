@@ -52,7 +52,12 @@ const entry = d => {
 const entries = ds => {
   const f = document.createDocumentFragment();
   for (const d of ds) {
-    f.appendChild(entry(d));
+    if (d.paused === false && f.firstElementChild) {
+      f.insertBefore(entry(d), f.firstElementChild);
+    }
+    else {
+      f.appendChild(entry(d));
+    }
   }
   const parent = document.getElementById('entries');
   parent.insertBefore(f, parent.firstChild);
@@ -101,14 +106,22 @@ document.addEventListener('click', e => {
     input.value = '';
     document.execCommand('paste');
     input.classList.add('hidden');
-    // extract links
-    chrome.runtime.sendMessage({
-      method: 'extract-links',
-      content: input.value
-    }, links => chrome.runtime.sendMessage({
-      method: 'open-jobs',
-      jobs: [...links, ...(e.target.links || [])].filter(a => a).map(link => ({link}))
-    }));
+    if (e.shiftKey) {
+      chrome.runtime.sendMessage({
+        method: 'open-jobs',
+        jobs: []
+      });
+    }
+    else {
+      // extract links
+      chrome.runtime.sendMessage({
+        method: 'extract-links',
+        content: input.value
+      }, links => chrome.runtime.sendMessage({
+        method: 'open-jobs',
+        jobs: [...links, ...(e.target.links || [])].filter(a => a).map(link => ({link}))
+      }));
+    }
   }
   else if (command === 'detach') {
     chrome.tabs.create({

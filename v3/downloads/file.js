@@ -160,10 +160,67 @@ class File { /* write to disk */
 
     return {ranges, downloaded};
   }
-  stream() {
+  decrypt(key, chunk) { // key = {value, iv, method}
+    key.iv = key.iv && key.iv.length ? (new Uint8Array(key.iv)).buffer : new ArrayBuffer(16);
+    key.value = (new Uint8Array(key.value)).buffer;
+
+    return new Promise((resolve, reject) => {
+      if (key.method === 'AES-128') {
+        crypto.subtle.importKey('raw', key.value, {
+          name: 'AES-CBC',
+          length: 128
+        }, false, ['decrypt']).then(importedKey => crypto.subtle.decrypt({
+          name: 'AES-CBC',
+          iv: key.iv
+        }, importedKey, chunk.buffer)).then(resolve, reject);
+      }
+      else {
+        reject(Error(`"${key.method}" encryption is not supported`));
+      }
+    });
+  }
+  stream(options) {
     const chunks = [];
-    let resolve;
+    const length = options.offsets.length;
+    const size = () => -1 * (options.offsets.shift() - options.offsets[0]);
+    const mo = { // keep chunks in memory until length meet the size for decryption
+      buffer: new Uint8Array(size()),
+      key: options.keys[0],
+      offset: 0
+    };
+    let resolve = () => {};
+    let reject = () => {};
     let request = {};
+    let error = '';
+
+    const decrypt = chunk => {
+      try {
+        mo.buffer.set(chunk, mo.offset);
+      }
+      catch (e) {
+        error = e;
+        reject(e);
+      }
+      mo.offset += chunk.byteLength;
+
+      if (mo.offset === mo.buffer.byteLength) {
+        this.decrypt(mo.key, mo.buffer).then(ab => {
+          chunks.push(new Uint8Array(ab));
+          if (options.offsets.length === 0) {
+            decrypt.readyState = 'done';
+          }
+          resolve();
+        }).catch(e => {
+          error = e;
+          reject(e);
+        });
+        // reset buffer
+        mo.key = options.keys[length - options.offsets.length];
+        mo.buffer = new Uint8Array(size());
+        mo.offset = 0;
+      }
+    };
+    decrypt.readyState === options.keys ? 'pending' : 'done';
 
     if (this.db) {
       const transaction = this.db.transaction('chunks', 'readonly');
@@ -171,19 +228,36 @@ class File { /* write to disk */
       request.onsuccess = e => {
         const cursor = e.target.result;
         if (cursor) {
-          chunks.push(cursor.value.buffer);
+          if (options.keys) {
+            decrypt(cursor.value.buffer);
+          }
+          else {
+            chunks.push(cursor.value.buffer);
+          }
           cursor.continue();
         }
-        if (resolve) {
+        else if (options.keys && decrypt.readyState === 'done') {
+          resolve();
+        }
+
+        if (!options.keys) {
           resolve();
         }
       };
       transaction.onerror = e => {
-        throw Error('File.stream, ' + e.target.error);
+        error = new Error(e.target.error);
+        reject(error);
       };
     }
     else {
-      this.cache.chunks.sort((a, b) => a.offset - b.offset).forEach(o => chunks.push(o.buffer));
+      this.cache.chunks.sort((a, b) => a.offset - b.offset).forEach(o => {
+        if (options.keys) {
+          decrypt(o.buffer);
+        }
+        else {
+          chunks.push(o.buffer);
+        }
+      });
       request.readyState = 'done';
       if (resolve) {
         resolve();
@@ -191,14 +265,20 @@ class File { /* write to disk */
     }
     return new ReadableStream({
       pull(controller) {
-        if (chunks.length) {
+        if (error) {
+          throw error;
+        }
+        else if (chunks.length) {
           controller.enqueue(chunks.shift());
         }
-        else if (request.readyState === 'done') {
+        else if (request.readyState === 'done' && decrypt.readyState === 'done') {
           controller.close();
         }
         else {
-          return new Promise(r => resolve = r).then(() => {
+          return new Promise((res, rej) => {
+            resolve = res;
+            reject = rej;
+          }).then(() => {
             const chunk = chunks.shift();
             if (chunk) {
               controller.enqueue(chunk);
@@ -211,8 +291,23 @@ class File { /* write to disk */
       }
     }, {});
   }
+  store({url, filename}) {
+    const d = options => new Promise((resolve, reject) => chrome.downloads.download(options, id => {
+      const lastError = chrome.runtime.lastError;
+      if (lastError) {
+        return reject(lastError);
+      }
+      resolve(id);
+    }));
+    return d({
+      url,
+      filename: filename || 'unknown'
+    }).catch(() => d({ // in case the filename is not valid, just pass the URL
+      url
+    }));
+  }
   async download(options, started = () => {}) {
-    const stream = this.stream();
+    const stream = this.stream(options);
     const response = new Response(stream, {
       headers: {
         'Content-Type': options.mime || 'text/plain'
@@ -221,21 +316,10 @@ class File { /* write to disk */
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
 
-    const d = options => new Promise((resolve, reject) => chrome.downloads.download(options, id => {
-      const lastError = chrome.runtime.lastError;
-      if (lastError) {
-        return reject(lastError);
-      }
-      resolve(id);
-    }));
-
-    // in case the filename is not valid, just pass the URL
-    return d({
+    return this.store({
       url,
-      filename: options.filename || 'unknown'
-    }).catch(() => d({
-      url
-    })).then(id => new Promise((resolve, reject) => {
+      filename: options.filename
+    }).then(id => new Promise((resolve, reject) => {
       chrome.downloads.search({
         id
       }, ([d]) => started(d));
