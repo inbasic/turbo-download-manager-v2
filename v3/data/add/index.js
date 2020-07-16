@@ -6,10 +6,17 @@ const tabId = Number(args.get('tabId'));
 const links = new Set();
 
 const check = () => {
-  const entries = document.querySelectorAll('#list .entry');
+  const entries = [...document.querySelectorAll('#list .entry')];
   document.getElementById('store').disabled = entries.length === 0;
   document.getElementById('download').disabled = entries.length === 0;
   document.getElementById('merge').disabled = entries.length < 2;
+
+  document.getElementById('rm-hls').disabled = entries.some(e => {
+    const {links} = e.querySelector('[name=links]');
+    if (!links) {
+      return true;
+    }
+  }) === false || entries.length === 0;
 
   document.title = 'Number of Jobs: ' + entries.length;
   document.body.dataset.count = entries.length;
@@ -96,7 +103,8 @@ const one = job => {
             msgs.push(pathname);
           }
         }
-        const index = prompt('Which HLS stream would you like to get?\n\n' +
+        const index = prompt(`Which HLS stream would you like to get for:\n` +
+          job.link + `\n\n` +
           msgs.map((s, i) => (i + 1) + '. ' + s).join('\n'), 1);
         if (index) {
           const uri = parser.manifest.playlists[Number(index) - 1].uri;
@@ -157,9 +165,12 @@ const one = job => {
           span.textContent = 'Parsing M3U8. Please wait...';
           try {
             for (const segment of parser.manifest.segments) {
-              keys.push(await parse(segment));
+              const key = await parse(segment);
+              if (key) {
+                keys.push(key);
+              }
             }
-            if (keys.some(k => k)) {
+            if (keys.length) {
               span.textContent = 'Segments (AES-128): ' + links.length;
             }
             else {
@@ -167,6 +178,7 @@ const one = job => {
             }
             span.links = links;
             span.keys = keys;
+            check();
           }
           catch (e) {
             span.textContent = 'M3U8 Parse Failed: ' + e.message;
@@ -182,12 +194,15 @@ const one = job => {
 one.t = document.getElementById('entry');
 
 if (args.has('jobs')) {
-  const f = document.createDocumentFragment();
   const jobs = JSON.parse(args.get('jobs'));
-  for (const job of jobs) {
-    f.appendChild(one(job));
+  if (jobs.length) {
+    const f = document.createDocumentFragment();
+    for (const job of jobs) {
+      f.appendChild(one(job));
+    }
+    document.querySelector('#list > div').appendChild(f);
   }
-  document.querySelector('#list > div').appendChild(f);
+
   check();
 }
 
@@ -205,17 +220,17 @@ document.getElementById('new').addEventListener('submit', e => {
 
 // valid URL
 {
-  document.querySelector('#new [name=link]').addEventListener('input', e => {
-    if (links.has(e.target.value)) {
-      e.target.setCustomValidity('This URL is already in the list');
+  document.querySelector('#new [name=link]').addEventListener('input', ({target}) => {
+    if (links.has(target.value)) {
+      target.setCustomValidity('This URL is already in the list');
     }
     else {
       try {
-        new URL(e.target.value);
-        e.target.setCustomValidity('');
+        new URL(target.value);
+        target.setCustomValidity('');
       }
-      catch (e) {
-        e.target.setCustomValidity('Invalid URL: ' + e.message);
+      catch (err) {
+        target.setCustomValidity('Invalid URL: ' + err.message);
       }
     }
   });
@@ -290,3 +305,14 @@ document.getElementById('list').addEventListener('click', e => {
     send('store');
   });
 }
+// no HLS
+document.getElementById('rm-hls').addEventListener('click', () => {
+  [...document.querySelectorAll('#list .entry')].forEach(e => {
+    const n = e.querySelector('[name=links]');
+    if (!n.links) {
+      e.remove();
+      links.delete(n.value);
+    }
+  });
+  check();
+});

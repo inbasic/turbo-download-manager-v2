@@ -185,10 +185,9 @@ class File { /* write to disk */
     const size = () => -1 * (options.offsets.shift() - options.offsets[0]);
     const mo = { // keep chunks in memory until length meet the size for decryption
       buffer: new Uint8Array(size()),
-      key: options.keys ? options.keys[0] : null,
+      key: options.keys && options.keys.length ? options.keys[0] : null,
       offset: 0
     };
-    console.log(mo);
     let resolve = () => {};
     let reject = () => {};
     let request = {};
@@ -219,10 +218,9 @@ class File { /* write to disk */
         mo.key = options.keys[length - options.offsets.length];
         mo.buffer = new Uint8Array(size());
         mo.offset = 0;
-        console.log(mo);
       }
     };
-    decrypt.readyState === options.keys ? 'pending' : 'done';
+    decrypt.readyState === options.keys && options.keys.length ? 'pending' : 'done';
 
     if (this.db) {
       const transaction = this.db.transaction('chunks', 'readonly');
@@ -230,7 +228,7 @@ class File { /* write to disk */
       request.onsuccess = e => {
         const cursor = e.target.result;
         if (cursor) {
-          if (options.keys) {
+          if (options.keys && options.keys.length) {
             decrypt(cursor.value.buffer);
           }
           else {
@@ -238,11 +236,11 @@ class File { /* write to disk */
           }
           cursor.continue();
         }
-        else if (options.keys && decrypt.readyState === 'done') {
+        else if (options.keys && options.keys.length && decrypt.readyState === 'done') {
           resolve();
         }
 
-        if (!options.keys) {
+        if (!options.keys || options.keys.length === 0) {
           resolve();
         }
       };
@@ -253,7 +251,7 @@ class File { /* write to disk */
     }
     else {
       this.cache.chunks.sort((a, b) => a.offset - b.offset).forEach(o => {
-        if (options.keys) {
+        if (options.keys && options.keys.length) {
           decrypt(o.buffer);
         }
         else {

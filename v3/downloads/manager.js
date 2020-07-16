@@ -265,7 +265,6 @@ const manager = {
     return Promise.resolve();
   },
   search(options, callback, comprehensive = true) {
-    // console.log('manager.search', options, comprehensive);
     const sections = core => [...core.ranges].map(r => {
       for (const get of core.gets) {
         if (get.offset === r[0]) {

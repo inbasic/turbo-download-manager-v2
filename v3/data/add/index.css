@@ -102,7 +102,7 @@ body[data-count="0"] #list > div::before {
 }
 #tools {
   display: grid;
-  grid-template-columns: min-content min-content min-content;
+  grid-template-columns: min-content min-content min-content min-content;
   grid-gap: 5px;
   margin: 5px;
   justify-content: end;

@@ -281,7 +281,8 @@ manager.onChanged.addListener(info => {
     'context.download-media': true,
     'context.store-media': true,
     'context.extract-requests': true,
-    'context.clear-cache': true
+    'context.clear-cache': true,
+    'context.test': true
   }, prefs => {
     const map = {
       'extract-links': {
@@ -328,6 +329,11 @@ manager.onChanged.addListener(info => {
         contexts: ['browser_action'],
         title: 'Clear Detected Media List (for this tab)',
         documentUrlPatterns: ['*://*/*']
+      },
+      'test': {
+        contexts: ['browser_action'],
+        title: 'Open Test Page',
+        documentUrlPatterns: ['*://*/*']
       }
     };
     for (const id of Object.keys(map)) {
@@ -353,7 +359,12 @@ manager.onChanged.addListener(info => {
   });
 }
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === 'clear-cache') {
+  if (info.menuItemId === 'test') {
+    chrome.tabs.create({
+      url: 'https://webbrowsertools.com/test-download-with/'
+    });
+  }
+  else if (info.menuItemId === 'clear-cache') {
     chrome.tabs.executeScript({
       code: `
         if (typeof append !== 'undefined') {
