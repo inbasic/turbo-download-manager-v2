@@ -124,9 +124,12 @@ const one = job => {
           return o.uri;
         }).filter((s, i, l) => l.indexOf(s) === i);
         // example:
+        //   https://videojs.com/
         //   http://demo.theoplayer.com/drm-aes-protection-128-encryption?hsCtaTracking=cc0cef76-cc09-40b0-8e84-c1c278ec8764%7C6c30cfd0-2817-49e5-addc-b1a5afc68170
         //   https://www.radiantmediaplayer.com/media/rmp-segment/bbb-abr-aes/playlist.m3u8
         //   https://anime.anidub.life/anime/anime_ongoing/11235-velikij-pritvorschik-greatpretender-01-iz-23.html
+        //   m3u8 with native fetch:
+        //   https://kinja-vh.akamaihd.net/i/prod/186898/186898_,240p,480p,720p,1080p,.mp4.csmil/master.m3u8
         const keys = [];
         if (links.length) {
           const parse = segment => {

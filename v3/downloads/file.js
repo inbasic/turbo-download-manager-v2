@@ -220,7 +220,7 @@ class File { /* write to disk */
         mo.offset = 0;
       }
     };
-    decrypt.readyState === options.keys && options.keys.length ? 'pending' : 'done';
+    decrypt.readyState = options.keys && options.keys.length ? 'pending' : 'done';
 
     if (this.db) {
       const transaction = this.db.transaction('chunks', 'readonly');
@@ -239,9 +239,11 @@ class File { /* write to disk */
         else if (options.keys && options.keys.length && decrypt.readyState === 'done') {
           resolve();
         }
-
-        if (!options.keys || options.keys.length === 0) {
+        else if ((!options.keys || options.keys.length === 0) && !cursor) {
           resolve();
+        }
+        else {
+          console.log('black hole!');
         }
       };
       transaction.onerror = e => {
@@ -269,7 +271,8 @@ class File { /* write to disk */
           throw error;
         }
         else if (chunks.length) {
-          controller.enqueue(chunks.shift());
+          const chunk = chunks.shift();
+          controller.enqueue(chunk);
         }
         else if (request.readyState === 'done' && decrypt.readyState === 'done') {
           controller.close();

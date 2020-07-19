@@ -109,7 +109,12 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
         }
         fetch(core.properties.link).then(r => {
           if (r.ok) {
-            r.arrayBuffer().then(buffer => {
+            // we don't have filename info when the first chunk is not supporting threading
+            Object.assign(core.properties, core.guess(r.headers), {
+              mime: r.headers.get('Content-Type')
+            });
+            r.arrayBuffer().then(ab => {
+              const buffer = new Uint8Array(ab);
               info.file.chunks({
                 buffer,
                 offset: core.properties['disk-write-offset']
@@ -141,7 +146,9 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
       }, native => {
         post({native});
         delete downloads.cache[id];
-      }).catch(onerror);
+      }).catch(e => {
+        onerror(e, true);
+      });
     }
     else if (success) {
       const offset = core.properties.size + core.properties['disk-write-offset'];
