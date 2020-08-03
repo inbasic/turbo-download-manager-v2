@@ -63,9 +63,13 @@ const job = (jobs, tab) => chrome.storage.local.get({
     active: true,
     currentWindow: true
   }, tabs => resolve(tabs[0] || {})));
+  const args = new URLSearchParams();
+  args.append('tabId', tab.id);
+  args.append('referrer', tab.url);
+  args.append('jobs', JSON.stringify(jobs));
 
   chrome.windows.create({
-    url: chrome.extension.getURL('data/add/index.html?tabId=' + tab.id + '&jobs=' + encodeURIComponent(JSON.stringify(jobs))),
+    url: 'data/add/index.html?' + args.toString(),
     width: prefs['job-width'],
     height: prefs['job-height'],
     left: prefs['job-left'],

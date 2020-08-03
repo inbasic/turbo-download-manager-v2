@@ -13,11 +13,11 @@
     "contextMenus",
     "unlimitedStorage",
     "*://*/*",
-    "power"
+    "power",
+    "webRequest",
+    "webRequestBlocking"
   ],
-  "optional_permissions": [
-    "webRequest"
-  ],
+  "optional_permissions": [],
   "icons": {
     "16": "data/icons/16.png",
     "19": "data/icons/19.png",

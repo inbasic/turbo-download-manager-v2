@@ -92,13 +92,15 @@ h1 {
   display: none;
 }
 body[data-count="0"] #list > div::before {
-  content: 'Your new downloading jobs appear here';
+  content: 'Your new downloading jobs appear here. For M3U8 links wait for parsing.';
   position: absolute;
-  width: 100%;
+  margin: 20px;
+  width: calc(100% - 40px);
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
 }
 #tools {
   display: grid;

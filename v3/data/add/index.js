@@ -5,6 +5,12 @@ const args = new URLSearchParams(location.search);
 const tabId = Number(args.get('tabId'));
 const links = new Set();
 
+if (args.has('css')) {
+  const style = document.createElement('style');
+  style.textContent = args.get('css');
+  document.head.appendChild(style);
+}
+
 const check = () => {
   const entries = [...document.querySelectorAll('#list .entry')];
   document.getElementById('store').disabled = entries.length === 0;
@@ -21,6 +27,27 @@ const check = () => {
   document.title = 'Number of Jobs: ' + entries.length;
   document.body.dataset.count = entries.length;
 };
+
+// Referrer header is needed to fetch most encrypted keys
+chrome.tabs.query({
+  active: true,
+  currentWindow: true
+}, ([current]) => {
+  chrome.webRequest.onBeforeSendHeaders.addListener(({requestHeaders}) => {
+    requestHeaders.push({
+      name: 'Referer',
+      value: args.get('referrer')
+    });
+    return {
+      requestHeaders
+    };
+  }, {
+    tabId: current.id,
+    urls: ['*://*/*']
+  }, ['requestHeaders', 'blocking', 'extraHeaders']);
+
+  start();
+});
 
 const get = async (link, type = 'text') => {
   const r = await fetch(link, {
@@ -63,8 +90,9 @@ const one = job => {
 
   links.add(job.link);
 
-  if (job.link.indexOf('.m3u8') !== -1) {
+  if (job.link.indexOf('.m3u8') !== -1 || job.link.startsWith('data:audio/mpegurl')) {
     const span = clone.querySelector('[name=links]');
+    span.textContent = 'Parsing...';
     const parse = link => get(link).then(async content => {
       const path = (root, rel) => {
         let a = root.split('/');
@@ -115,6 +143,9 @@ const one = job => {
             parse(uri);
           }
         }
+        else {
+          span.textContent = 'extraction aborted';
+        }
       }
       else if (parser.manifest && parser.manifest.segments) {
         const links = parser.manifest.segments.map(o => {
@@ -123,13 +154,16 @@ const one = job => {
           }
           return o.uri;
         }).filter((s, i, l) => l.indexOf(s) === i);
-        // example:
-        //   https://videojs.com/
-        //   http://demo.theoplayer.com/drm-aes-protection-128-encryption?hsCtaTracking=cc0cef76-cc09-40b0-8e84-c1c278ec8764%7C6c30cfd0-2817-49e5-addc-b1a5afc68170
-        //   https://www.radiantmediaplayer.com/media/rmp-segment/bbb-abr-aes/playlist.m3u8
-        //   https://anime.anidub.life/anime/anime_ongoing/11235-velikij-pritvorschik-greatpretender-01-iz-23.html
-        //   m3u8 with native fetch:
-        //   https://kinja-vh.akamaihd.net/i/prod/186898/186898_,240p,480p,720p,1080p,.mp4.csmil/master.m3u8
+        /**
+          example:
+            https://videojs.com/
+            http://demo.theoplayer.com/drm-aes-protection-128-encryption?hsCtaTracking=cc0cef76-cc09-40b0-8e84-c1c278ec8764%7C6c30cfd0-2817-49e5-addc-b1a5afc68170 (AES-128 encrypted)
+            https://www.radiantmediaplayer.com/media/rmp-segment/bbb-abr-aes/playlist.m3u8
+            https://anime.anidub.life/anime/anime_ongoing/11270-devushki-poni-enkoma-umayon-01-iz-13.html (HLS that needs referrer header)
+            https://anime.anidub.life/anime/anime_ongoing/11235-velikij-pritvorschik-greatpretender-01-iz-23.html
+            https://anime.anidub.life/anime/10408-galakticheskiy-ekspress-999-ginga-tetsudo-999-001-iz-113.html
+            https://kinja-vh.akamaihd.net/i/prod/186898/186898_,240p,480p,720p,1080p,.mp4.csmil/master.m3u8 (with native fetch)
+        **/
         const keys = [];
         if (links.length) {
           const parse = segment => {
@@ -184,11 +218,11 @@ const one = job => {
             check();
           }
           catch (e) {
-            span.textContent = 'M3U8 Parse Failed: ' + e.message;
+            span.textContent = '=Failed: ' + e.message;
           }
         }
       }
-    });
+    }).catch(() => span.textContent = 'Failed to fetch');
     parse(job.link);
   }
 
@@ -196,18 +230,20 @@ const one = job => {
 };
 one.t = document.getElementById('entry');
 
-if (args.has('jobs')) {
-  const jobs = JSON.parse(args.get('jobs'));
-  if (jobs.length) {
-    const f = document.createDocumentFragment();
-    for (const job of jobs) {
-      f.appendChild(one(job));
+const start = () => {
+  if (args.has('jobs')) {
+    const jobs = JSON.parse(args.get('jobs'));
+    if (jobs.length) {
+      const f = document.createDocumentFragment();
+      for (const job of jobs) {
+        f.appendChild(one(job));
+      }
+      document.querySelector('#list > div').appendChild(f);
     }
-    document.querySelector('#list > div').appendChild(f);
-  }
 
-  check();
-}
+    check();
+  }
+};
 
 document.getElementById('new').addEventListener('submit', e => {
   document.querySelector('#list > div').appendChild(one({
@@ -263,13 +299,13 @@ document.getElementById('list').addEventListener('click', e => {
       if (links) {
         job.links = links;
         job.keys = keys;
-        delete job.link;
       }
       return job;
     });
     if (method === 'download') {
       chrome.runtime.sendMessage({
         method: 'add-jobs',
+        tabId,
         jobs
       }, () => window.close());
     }

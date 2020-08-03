@@ -71,18 +71,17 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
     error: e => console.warn('a fetch request is broken', e)
   };
   observe.complete = (success, error) => {
-    const onerror = async (error, forced = false) => {
-      console.warn('Downloading failed:', error);
+    const onerror = async error => {
+      console.warn('Job Failed:', error);
       info.error = error.message;
       info.state = 'interrupted';
       // we cannot download, let's use native
       if (
-        forced === false &&
         core.properties.restored !== false &&
         core.properties.downloaded === 0 &&
         info.links.length < 2 &&
         configs['use-native-when-possible'] &&
-        error.message !== 'USER_CANCELED'
+        info.dead !== true
       ) {
         File.prototype.store(options).then(nativeID => chrome.downloads.search({
           id: nativeID
@@ -97,9 +96,8 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
       }
       else if (
         info.links.length &&
-        forced === false &&
         core.properties.downloaded === 0 &&
-        error.message !== 'USER_CANCELED'
+        info.dead !== true
       ) {
         info.error += '. Using fetch API...';
         info.state = 'in_progress';
@@ -107,7 +105,14 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
           info.file = new File(undefined, configs['use-memory-disk']);
           await info.file.open();
         }
-        fetch(core.properties.link).then(r => {
+        // abort native fetch if pause is requested or response status is not okay
+        const controller = new AbortController();
+        core.pause = () => {
+          controller.abort();
+        };
+        fetch(core.properties.link, {
+          signal: controller.signal
+        }).then(r => {
           if (r.ok) {
             // we don't have filename info when the first chunk is not supporting threading
             Object.assign(core.properties, core.guess(r.headers), {
@@ -121,16 +126,20 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
               }).then(() => {
                 info.file.ready = true;
                 observe.complete(true);
-              }).catch(e => onerror(e, true));
+              }).catch(e => {
+                info.dead = true;
+                onerror(e);
+              });
             });
           }
           else {
+            controller.abort();
             onerror(Error('Failed to fetch'), true);
           }
         });
       }
       post({
-        error: {current: info.error}
+        [info.state === 'interrupted' ? 'error' : 'warning']: {current: info.error}
       });
     };
 
@@ -147,7 +156,8 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
         post({native});
         delete downloads.cache[id];
       }).catch(e => {
-        onerror(e, true);
+        info.dead = true;
+        onerror(e);
       });
     }
     else if (success) {
@@ -221,6 +231,7 @@ downloads.search = (options = {}, callback = () => {}) => {
 };
 downloads.cancel = (id, callback) => {
   downloads.cache[id].core.pause();
+  downloads.cache[id].dead = true;
   downloads.cache[id].state = 'interrupted';
   downloads.cache[id].error = 'USER_CANCELED';
   // try {
@@ -247,6 +258,10 @@ const manager = {
   NOT_START_INDEX: 200000,
   nindex: 200000,
   ncache: {},
+
+  native(id) {
+    return id < downloads.NORMAL_START_INDEX;
+  },
   schedlue(links, store = true) {
     const olinks = Object.values(manager.ncache).map(o => o.finalUrl);
     const slinks = links.filter(link => link && olinks.indexOf(link) === -1);
@@ -307,13 +322,12 @@ const manager = {
     if (options.id && options.id >= manager.NOT_START_INDEX) {
       callback([manager.ncache[options.id]]);
     }
-    else if (options.id && options.id >= downloads.NORMAL_START_INDEX) {
-      return callback([
-        comprehensive ? object(downloads.cache[options.id]) : downloads.cache[options.id]
-      ]);
+    else if (options.id && manager.native(options.id) === false) {
+      const o = downloads.cache[options.id];
+      return callback([comprehensive && o ? object(o) : o]);
     }
     else if (options.id) {
-      if (options.id < downloads.NORMAL_START_INDEX) {
+      if (manager.native(options.id)) {
         chrome.downloads.search(options, callback);
       }
       else {
@@ -338,21 +352,21 @@ const manager = {
     }
   },
   resume(id, callback) {
-    if (id < downloads.NORMAL_START_INDEX) {
+    if (manager.native(id)) {
       return chrome.downloads.resume(id, callback);
     }
     downloads.cache[id].core.resume();
     callback();
   },
   pause(id, callback) {
-    if (id < downloads.NORMAL_START_INDEX) {
+    if (manager.native(id)) {
       return chrome.downloads.pause(id, callback);
     }
     downloads.cache[id].core.pause();
     callback();
   },
-  cancel(id, callback) {
-    if (id < downloads.NORMAL_START_INDEX) {
+  cancel(id, callback = () => {}) {
+    if (manager.native(id)) {
       return chrome.downloads.cancel(id, callback);
     }
     downloads.cancel(id, callback);
@@ -366,7 +380,7 @@ const manager = {
             links: Object.values(manager.ncache).map(o => o.finalUrl)
           });
         }
-        else if (id >= downloads.NORMAL_START_INDEX) {
+        else if (manager.native(id) === false) {
           try {
             downloads.cache[id].core.properties.file.remove();
           }
@@ -385,7 +399,7 @@ const manager = {
     }, false);
   },
   getFileIcon(id, options, callback) {
-    if (id < downloads.NORMAL_START_INDEX) {
+    if (manager.native(id)) {
       return chrome.downloads.getFileIcon(id, options, callback);
     }
     callback('');

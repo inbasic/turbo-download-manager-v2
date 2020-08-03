@@ -1081,6 +1081,10 @@ class NFGet extends FGet { /* extends filename guessing */
         filename = filename.substr(0, index);
       }
     }
+    // decode
+    if (filename.startsWith('%')) {
+      filename = decodeURIComponent(filename);
+    }
     // removing exceptions
     filename = filename.trim().replace(/[\\/:*?"<>|]/g, '_').substring(0, 240);
 

@@ -214,7 +214,7 @@ chrome.runtime.sendMessage({
 
 // confirm
 chrome.permissions.contains({
-  permissions: ['webRequest']
+  permissions: ['webRequest', 'webRequestBlocking']
 }, result => {
   if (result === false) {
     chrome.storage.local.get({
@@ -230,7 +230,7 @@ document.querySelector('#confirm span[data-command=no]').addEventListener('click
   'webRequest.confirm': false
 }));
 document.querySelector('#confirm span[data-command=yes]').addEventListener('click', () => chrome.permissions.request({
-  permissions: ['webRequest']
+  permissions: ['webRequest', 'webRequestBlocking']
 }, granted => {
   document.getElementById('confirm').classList.add('hidden');
   if (granted) {
