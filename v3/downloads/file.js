@@ -182,7 +182,14 @@ class File { /* write to disk */
   stream(options) {
     const chunks = [];
     const length = options.offsets.length;
-    const size = () => -1 * (options.offsets.shift() - options.offsets[0]);
+    const size = () => {
+      if (options.keys && options.keys.length) {
+        return -1 * (options.offsets.shift() - options.offsets[0]);
+      }
+      else { // do not create buffer when file is not encrypted
+        return 0;
+      }
+    };
     const mo = { // keep chunks in memory until length meet the size for decryption
       buffer: new Uint8Array(size()),
       key: options.keys && options.keys.length ? options.keys[0] : null,

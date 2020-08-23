@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "version": "0.6.1",
+  "version": "0.6.2",
   "name": "Turbo Download Manager (3rd edition)",
   "description": "A download manager with the ability to pause and resume downloads, download remote files, and more.",
 

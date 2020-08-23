@@ -565,6 +565,8 @@ class MGet { /* extends multi-threading */
       'absolute-max-segment-size': 100 * 1024 * 1024,
       // if true, the segment size will be decided when headers received
       'overwrite-segment-size': true,
+      // max filesize to be considered
+      'max-file-size': 2 * 1024 * 1024 * 1024,
       ...configs
     };
     this.observe = observe = {
@@ -630,8 +632,8 @@ class MGet { /* extends multi-threading */
     if (!size) {
       return 'Server does not report size';
     }
-    if (size >= Math.pow(2, 32)) {
-      return 'Cannot download more than 4G files';
+    if (size >= this.configs['max-file-size']) {
+      return 'filesize exceeds the allowed limit';
     }
     this.properties.size = size;
     const type = response.headers.get('Accept-Ranges');
