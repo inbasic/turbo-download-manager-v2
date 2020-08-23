@@ -630,6 +630,9 @@ class MGet { /* extends multi-threading */
     if (!size) {
       return 'Server does not report size';
     }
+    if (size >= Math.pow(2, 32)) {
+      return 'Cannot download more than 4G files';
+    }
     this.properties.size = size;
     const type = response.headers.get('Accept-Ranges');
 
