@@ -566,7 +566,7 @@ class MGet { /* extends multi-threading */
       // if true, the segment size will be decided when headers received
       'overwrite-segment-size': true,
       // max filesize to be considered
-      'max-file-size': 2 * 1024 * 1024 * 1024,
+      'max-file-size': 3 * 1024 * 1024 * 1024,
       ...configs
     };
     this.observe = observe = {

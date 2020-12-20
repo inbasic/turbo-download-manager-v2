@@ -211,12 +211,22 @@ chrome.runtime.onMessageExternal.addListener((request, sender, response) => {
 
 const update = {
   id: -1,
-  keepAwake: 'system',
+  keepAwake: 'display',
   perform() {
     clearTimeout(update.id);
     manager.search({
       state: 'in_progress'
     }, ds => {
+      // only when there are ongoing downloads
+      if (chrome.power) {
+        if (update.keepAwake && ds.some(d => d.paused === false)) {
+          chrome.power.requestKeepAwake(update.keepAwake);
+        }
+        else {
+          chrome.power.releaseKeepAwake();
+        }
+      }
+      // badge
       if (ds.length) {
         if (ds.some(d => d.paused === false)) {
           update.id = setTimeout(() => update.perform(), 1000);
@@ -227,17 +237,11 @@ const update = {
         chrome.browserAction.setBadgeText({
           text: totalBytes ? (bytesReceived / totalBytes * 100).toFixed(0) + '%' : ''
         });
-        if (update.keepAwake && chrome.power) {
-          chrome.power.requestKeepAwake(update.keepAwake);
-        }
       }
       else {
         chrome.browserAction.setBadgeText({
           text: ''
         });
-        if (update.keepAwake && chrome.power) {
-          chrome.power.releaseKeepAwake();
-        }
       }
       chrome.runtime.sendMessage({
         method: 'batch-update',
@@ -246,6 +250,15 @@ const update = {
     });
   }
 };
+chrome.storage.local.get({
+  'keep.awake': 'display'
+}, prefs => update.keepAwake = prefs['keep.awake']);
+chrome.storage.onChanged.addListener(ps => {
+  if (ps['keep.awake']) {
+    update.keepAwake = ps['keep.awake'].newValue;
+  }
+});
+
 manager.onChanged.addListener(info => {
   if (info.native) {
     chrome.runtime.sendMessage({

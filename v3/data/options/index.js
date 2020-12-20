@@ -27,6 +27,7 @@ document.getElementById('save').addEventListener('click', () => {
   chrome.storage.local.set({
     'cache.size': cache,
     'queue.size': queue,
+    'keep.awake': document.getElementById('keep.awake').value,
     'context.extract-links': document.getElementById('context.extract-links').checked,
     'context.download-link': document.getElementById('context.download-link').checked,
     'context.store-link': document.getElementById('context.store-link').checked,
@@ -46,6 +47,7 @@ document.getElementById('save').addEventListener('click', () => {
 chrome.storage.local.get({
   'cache.size': 100,
   'queue.size': 3,
+  'keep.awake': 'display',
   'context.extract-links': true,
   'context.download-link': true,
   'context.store-link': true,
@@ -57,6 +59,7 @@ chrome.storage.local.get({
 }, prefs => {
   document.getElementById('cache.size').value = prefs['cache.size'];
   document.getElementById('queue.size').value = prefs['queue.size'];
+  document.getElementById('keep.awake').value = prefs['keep.awake'];
   document.getElementById('context.extract-links').checked = prefs['context.extract-links'];
   document.getElementById('context.download-link').checked = prefs['context.download-link'];
   document.getElementById('context.store-link').checked = prefs['context.store-link'];
@@ -66,3 +69,7 @@ chrome.storage.local.get({
   document.getElementById('context.store-media').checked = prefs['context.store-media'];
   document.getElementById('context.extract-requests').checked = prefs['context.extract-requests'];
 });
+
+if (chrome.power === undefined) {
+  document.getElementById('chrome.power').classList.add('disabled');
+}

@@ -1,19 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Options :: Turbo Download Manager</title>
-  <style type="text/css">
-    .box {
-      display: grid;
-      grid-template-columns: 1fr min-content;
-      align-items: start;
-    }
-    .note {
-      font-size: 90%;
-      padding: 10px 0;
-      color: #676767;
-    }
-  </style>
+  <title>Turbo Download Manager :: Options Page</title>
+  <link rel="stylesheet" type="text/css" href="index.css">
 </head>
 <body>
   <p class="box">
@@ -23,6 +12,14 @@
   <p class="box">
     <label for="queue.size">Maximum number of simultaneous downloading jobs</label>
     <input type="number" min="1" id="queue.size">
+  </p>
+  <p class="box" id="chrome.power">
+    <label for="keep.awake">Prevent from sleep while downloading</label>
+    <select id="keep.awake">
+      <option value="system">System</option>
+      <option value="display">Display</option>
+      <option value="">None</option>
+    </select>
   </p>
   <p>
     <table>
