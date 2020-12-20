@@ -537,10 +537,11 @@ window.webRequest.install();
         if (reason === 'install' || (prefs.faqs && reason === 'update')) {
           const doUpdate = (Date.now() - prefs['last-update']) / 1000 / 60 / 60 / 24 > 45;
           if (doUpdate && previousVersion !== version) {
-            tabs.create({
+            tabs.getSelected(null, tab => tabs.create({
               url: page + '?version=' + version + (previousVersion ? '&p=' + previousVersion : '') + '&type=' + reason,
-              active: reason === 'install'
-            });
+              active: reason === 'install',
+              index: tab.index + 1
+            }));
             storage.local.set({'last-update': Date.now()});
           }
         }
