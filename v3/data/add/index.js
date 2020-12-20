@@ -33,6 +33,10 @@ chrome.tabs.query({
   active: true,
   currentWindow: true
 }, ([current]) => {
+  const opts = ['requestHeaders', 'blocking'];
+  if (/Firefox/.test(navigator.userAgent) === false) {
+    opts.push('extraHeaders');
+  }
   chrome.webRequest.onBeforeSendHeaders.addListener(({requestHeaders}) => {
     requestHeaders.push({
       name: 'Referer',
@@ -44,7 +48,7 @@ chrome.tabs.query({
   }, {
     tabId: current.id,
     urls: ['*://*/*']
-  }, ['requestHeaders', 'blocking', 'extraHeaders']);
+  }, opts);
 
   start();
 });
