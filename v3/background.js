@@ -36,11 +36,18 @@ const CONFIG = {
   'max-simultaneous-writes': 3,
   'max-number-memory-chunks': 500
 };
+const EXCONFIG = {
+  'native-search-limit': 20 // set a limit when search from chrome.downloads
+};
 // read user configs
 {
   const startup = () => chrome.storage.local.get({
-    'internal-get-configs': {}
-  }, prefs => Object.assign(CONFIG, prefs['internal-get-configs']));
+    'internal-get-configs': {},
+    'extra-configs': {}
+  }, prefs => {
+    Object.assign(CONFIG, prefs['internal-get-configs']);
+    Object.assign(EXCONFIG, prefs['extra-configs']);
+  });
   chrome.runtime.onStartup.addListener(startup);
   chrome.runtime.onInstalled.addListener(startup);
 }
@@ -82,11 +89,22 @@ const onMessage = (request, sender, response) => {
   if (request.method === 'popup_ready') {
     Promise.all([
       new Promise(resolve => manager.search({state: 'not_started'}, resolve)),
-      new Promise(resolve => manager.search({state: 'transfer'}, resolve)),
-      new Promise(resolve => manager.search({state: 'interrupted'}, resolve)),
-      new Promise(resolve => manager.search({state: 'complete'}, resolve))
-    ]).then(arr => {
-      response(arr.flat());
+      new Promise(resolve => manager.search({
+        orderBy: ['-startTime'],
+        state: 'transfer'
+      }, resolve)),
+      new Promise(resolve => manager.search({
+        limit: EXCONFIG['native-search-limit'],
+        orderBy: ['-startTime'],
+        state: 'interrupted'
+      }, resolve)),
+      new Promise(resolve => manager.search({
+        limit: EXCONFIG['native-search-limit'],
+        orderBy: ['-startTime'],
+        state: 'complete'
+      }, resolve))
+    ]).then(([a, b, c, d]) => {
+      response([...a.reverse(), ...b.reverse(), ...c.reverse(), ...d.reverse()]);
       update.perform();
     });
     return true;
