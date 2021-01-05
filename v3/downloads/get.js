@@ -565,8 +565,10 @@ class MGet { /* extends multi-threading */
       'absolute-max-segment-size': 100 * 1024 * 1024,
       // if true, the segment size will be decided when headers received
       'overwrite-segment-size': true,
-      // max filesize to be considered
+      // max filesize to be considered; abort larger files
       'max-file-size': 3 * 1024 * 1024 * 1024,
+      // filesize greater than this value will be hanndled by native write
+      'bypass-native-downloading': 500 * 1024 * 1024,
       ...configs
     };
     this.observe = observe = {
@@ -1010,11 +1012,15 @@ class FGet extends MSGet { /* extends write to disk */
   }
   /* download the file to user disk (only call when there is no instance left) */
   async download(options, started) {
-    const {properties: {file, filename, fileextension, mime, size}} = this;
+    const {configs, properties: {file, filename, fileextension, mime, size}} = this;
     if (file.ready && file.opened) {
       const download = async () => {
         options.filename = options.filename || (fileextension ? filename + '.' + fileextension : filename) || 'unknown';
+        options.fileextension = fileextension;
+        options.size = size;
         options.mime = options.mime || mime;
+        options.dialog = 'showSaveFilePicker' in window && size > configs['bypass-native-downloading'];
+        // options.dialog = true;
 
         await file.download(options, started);
         await file.remove();

@@ -23,6 +23,13 @@ class File { /* write to disk */
     this.id = id;
     this.opened = false;
     this.memory = memory;
+
+    this.connections = {};
+    chrome.runtime.onConnect.addListener(port => {
+      if (this.connections[port.name]) {
+        this.connections[port.name](port);
+      }
+    });
   }
   async space(size) {
     const {quota, usage} = await navigator.storage.estimate();
@@ -179,7 +186,21 @@ class File { /* write to disk */
       }
     });
   }
-  stream(options) {
+  count() {
+    return new Promise((resolve, reject) => {
+      if (this.db) {
+        const transaction = this.db.transaction('chunks', 'readonly');
+        const store = transaction.objectStore('chunks');
+        const request = store.count();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = e => reject(Error('File.count, ' + e.target.error));
+      }
+      else {
+        resolve(this.cache.chunks.length);
+      }
+    });
+  }
+  stream(options, progress = () => {}) {
     const chunks = [];
     const length = options.offsets.length;
     const size = () => {
@@ -191,7 +212,7 @@ class File { /* write to disk */
       }
     };
     const mo = { // keep chunks in memory until length meet the size for decryption
-      buffer: new Uint8Array(size()),
+      buffer: options.keys && options.keys.length ? new Uint8Array(size()) : new Uint8Array(0),
       key: options.keys && options.keys.length ? options.keys[0] : null,
       offset: 0
     };
@@ -230,27 +251,26 @@ class File { /* write to disk */
     decrypt.readyState = options.keys && options.keys.length ? 'pending' : 'done';
 
     if (this.db) {
+      const encrypted = options.keys && options.keys.length;
       const transaction = this.db.transaction('chunks', 'readonly');
       request = transaction.objectStore('chunks').openCursor();
       request.onsuccess = e => {
         const cursor = e.target.result;
         if (cursor) {
-          if (options.keys && options.keys.length) {
+          if (encrypted) {
             decrypt(cursor.value.buffer);
           }
           else {
             chunks.push(cursor.value.buffer);
+            resolve();
           }
           cursor.continue();
         }
-        else if (options.keys && options.keys.length && decrypt.readyState === 'done') {
+        else if (encrypted && decrypt.readyState === 'done') {
           resolve();
         }
-        else if ((!options.keys || options.keys.length === 0) && !cursor) {
+        else if (!encrypted) {
           resolve();
-        }
-        else {
-          console.log('black hole!');
         }
       };
       transaction.onerror = e => {
@@ -279,6 +299,7 @@ class File { /* write to disk */
         }
         else if (chunks.length) {
           const chunk = chunks.shift();
+          progress();
           controller.enqueue(chunk);
         }
         else if (request.readyState === 'done' && decrypt.readyState === 'done') {
@@ -291,6 +312,7 @@ class File { /* write to disk */
           }).then(() => {
             const chunk = chunks.shift();
             if (chunk) {
+              progress();
               controller.enqueue(chunk);
             }
             else {
@@ -317,6 +339,47 @@ class File { /* write to disk */
     }));
   }
   async download(options, started = () => {}) {
+    if (options.dialog) {
+      const width = 500;
+      const height = 200;
+      const left = screen.availLeft + Math.round((screen.availWidth - width) / 2);
+      const top = screen.availTop + Math.round((screen.availHeight - height) / 2);
+
+      const code = await new Promise(resolve => {
+        this.connections[this.id] = port => {
+          port.onMessage.addListener(request => {
+            if (request.method === 'close-db') {
+              if (this.db) {
+                this.db.close();
+              }
+            }
+            else if (request.method === 'count') {
+              this.count().then(count => port.postMessage({
+                method: 'count',
+                count
+              }));
+            }
+            else if (request.method === 'closed') {
+              resolve(request.code);
+            }
+          });
+        };
+        chrome.windows.create({
+          url: chrome.extension.getURL('/downloads/save-dialog/index.html') +
+            '?id=' + this.id + '&options=' + encodeURIComponent(JSON.stringify(options)),
+          width,
+          height,
+          left,
+          top,
+          type: 'popup'
+        });
+      });
+      if (code === 0) {
+        started(-1);
+        return Promise.resolve();
+      }
+    }
+
     const stream = this.stream(options);
     const response = new Response(stream, {
       headers: {

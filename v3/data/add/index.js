@@ -205,7 +205,11 @@ const one = job => {
 
           span.textContent = 'Parsing M3U8. Please wait...';
           try {
+            let n = 0;
             for (const segment of parser.manifest.segments) {
+              const percent = (n / parser.manifest.segments.length * 100).toFixed(0);
+              span.textContent = `Parsing M3U8 (${percent}%)...`;
+              n += 1;
               const key = await parse(segment);
               if (key) {
                 keys.push(key);
@@ -222,7 +226,7 @@ const one = job => {
             check();
           }
           catch (e) {
-            span.textContent = '=Failed: ' + e.message;
+            span.textContent = 'Failed: ' + e.message;
           }
         }
       }

@@ -84,10 +84,15 @@ chrome.runtime.onMessage.addListener(request => {
   }
   else if (request.method === 'convert-to-native') {
     const e = document.getElementById(request.id);
-    e.id = request.native.id; // convert to the native id
-    e.update(request.native);
-    e.once(request.native);
-    icon(request.native).then(iconURL => e.preview(iconURL));
+    if (request.native !== -1) {
+      e.id = request.native.id; // convert to the native id
+      e.update(request.native);
+      e.once(request.native);
+      icon(request.native).then(iconURL => e.preview(iconURL));
+    }
+    else { // file is being handled by direct disk writing
+      e.remove();
+    }
   }
   // calls after filename is resolved
   else if (request.method === 'prepare-one') {
