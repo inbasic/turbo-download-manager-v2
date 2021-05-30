@@ -8,10 +8,13 @@
 </head>
 <template id="entry">
   <div class="entry">
-    <input type="text" name="filename" placeholder="Suggested Filename (optional)">
     <span name="links"></span>
+    <input type="text" name="filename" placeholder="Suggested Filename (optional)">
     <label>Threads: <input type="number" name="threads" min="1" max="8"></label>
+    <span>Link</span>
     <input type="text" name="link" placeholder="Downloadable URL (required)" required>
+    <span>Referrer</span>
+    <input type="text" name="referrer" placeholder="Referrer URL (optional)">
     <input type="submit" value="Remove" data-command="remove">
   </div>
 </template>
@@ -19,10 +22,13 @@
   <h1>Add a new Job</h1>
   <div id="new">
     <form class="entry">
-      <input type="text" name="filename" placeholder="Suggested Filename (optional)">
       <span name="links"></span>
+      <input type="text" name="filename" placeholder="Suggested Filename (optional)">
       <label>Threads: <input type="number" placeholder="3" name="threads" min="1" max="8" title="This is the maximum simultaneous number of threads that will be used"></label>
+      <span>Link</span>
       <input type="text" name="link" placeholder="Downloadable URL (required)" required autofocus>
+      <span>Referrer</span>
+      <input type="text" name="referrer" placeholder="Referrer URL (optional)">
       <input type="submit" value="Add">
     </form>
   </div>

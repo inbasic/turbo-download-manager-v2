@@ -1047,9 +1047,10 @@ class NFGet extends FGet { /* extends filename guessing */
     }
     super.fixConfigs();
   }
-  guess(headers) {
-    const disposition = headers.get('Content-Disposition');
-    const mime = headers.get('Content-Type').split(';')[0];
+  guess(response) {
+    const disposition = response.headers.get('Content-Disposition');
+    const mime = (response.headers.get('Content-Type') || '').split(';')[0];
+
 
     let filename = this.properties.filename || '';
     // get name from Content-Disposition
@@ -1072,7 +1073,7 @@ class NFGet extends FGet { /* extends filename guessing */
     }
     // get name from URL
     if (!filename) {
-      const url = this.properties.link.replace(/\/$/, '');
+      const url = response.url.replace(/\/$/, '');
       const tmp = /(title|filename)=([^&]+)/.exec(url);
       if (tmp && tmp.length) {
         filename = tmp[2];
@@ -1121,7 +1122,7 @@ class NFGet extends FGet { /* extends filename guessing */
     }
   }
   headers(response) {
-    Object.assign(this.properties, this.guess(response.headers), {
+    Object.assign(this.properties, this.guess(response), {
       mime: response.headers.get('Content-Type')
     });
     super.headers(response);

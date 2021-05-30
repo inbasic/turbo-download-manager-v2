@@ -49,7 +49,7 @@ h1 {
   font-size: 100%;
   font-weight: normal;
   margin: 0;
-  padding: 5px;
+  padding: 10px;
   background-color: var(--blue);
   color: var(--white);
   text-align: center;
@@ -57,12 +57,13 @@ h1 {
 
 .entry {
   display: grid;
-  grid-template-columns: 1fr min-content min-content;
-  grid-gap: 5px;
+  grid-template-columns: min-content 1fr min-content;
+  grid-gap: 5px 10px;
   white-space: nowrap;
   padding: 5px;
   margin: 5px;
   background-color: var(--white);
+  align-items: center;
 }
 .entry input[type=number],
 .entry input[type=text] {
@@ -80,6 +81,7 @@ h1 {
   align-items: center;
   padding: 0 10px;
 }
+
 .entry input[name="link"] {
   grid-column: span 2;
 }
@@ -119,4 +121,6 @@ body[data-count="0"] #list > div::before {
   grid-gap: 5px;
   align-items: center;
 }
-
+#download {
+  font-weight: bold;
+}

@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "version": "0.6.4",
+  "version": "0.6.5",
   "name": "Turbo Download Manager (3rd edition)",
   "description": "__MSG_description__",
   "default_locale": "en",

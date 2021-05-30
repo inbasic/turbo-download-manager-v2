@@ -91,6 +91,7 @@ const one = job => {
   clone.querySelector('[name=filename]').value = job.filename || '';
   clone.querySelector('[name=link]').value = job.link || '';
   clone.querySelector('[name=threads]').value = job.threads || 3;
+  clone.querySelector('[name=referrer]').value = document.querySelector('#new [name=referrer]').value;
 
   links.add(job.link);
 
@@ -158,16 +159,7 @@ const one = job => {
           }
           return o.uri;
         }).filter((s, i, l) => l.indexOf(s) === i);
-        /**
-          example:
-            https://videojs.com/
-            http://demo.theoplayer.com/drm-aes-protection-128-encryption?hsCtaTracking=cc0cef76-cc09-40b0-8e84-c1c278ec8764%7C6c30cfd0-2817-49e5-addc-b1a5afc68170 (AES-128 encrypted)
-            https://www.radiantmediaplayer.com/media/rmp-segment/bbb-abr-aes/playlist.m3u8
-            https://anime.anidub.life/anime/anime_ongoing/11270-devushki-poni-enkoma-umayon-01-iz-13.html (HLS that needs referrer header)
-            https://anime.anidub.life/anime/anime_ongoing/11235-velikij-pritvorschik-greatpretender-01-iz-23.html
-            https://anime.anidub.life/anime/10408-galakticheskiy-ekspress-999-ginga-tetsudo-999-001-iz-113.html
-            https://kinja-vh.akamaihd.net/i/prod/186898/186898_,240p,480p,720p,1080p,.mp4.csmil/master.m3u8 (with native fetch)
-        **/
+
         const keys = [];
         if (links.length) {
           const parse = segment => {
@@ -221,6 +213,7 @@ const one = job => {
             else {
               span.textContent = 'Segments: ' + links.length;
             }
+
             span.links = links;
             span.keys = keys;
             check();
@@ -239,6 +232,17 @@ const one = job => {
 one.t = document.getElementById('entry');
 
 const start = () => {
+  let referrer = args.get('referrer');
+  if (referrer) {
+    try {
+      new URL(referrer);
+      document.querySelector('#new [name=referrer]').value = referrer;
+    }
+    catch (e) {
+      referrer = '';
+    }
+  }
+
   if (args.has('jobs')) {
     const jobs = JSON.parse(args.get('jobs'));
     if (jobs.length) {
@@ -301,11 +305,14 @@ document.getElementById('list').addEventListener('click', e => {
       const job = {
         filename: e.querySelector('[name=filename]').value,
         link: e.querySelector('[name=link]').value,
+        referrer: e.querySelector('[name=referrer]').value,
         threads: e.querySelector('[name=threads]').value
       };
       const {links, keys} = e.querySelector('[name=links]');
       if (links) {
-        job.links = links;
+        const base = links[0].replace(/[^/]*$/, '');
+        job.base = base;
+        job.links = links.map(s => s.replace(base, ''));
         job.keys = keys;
       }
       return job;
@@ -332,10 +339,13 @@ document.getElementById('list').addEventListener('click', e => {
       }, () => window.close());
     }
     else {
-      chrome.runtime.sendMessage({
-        method: 'store-links',
-        links: jobs.map(o => o.link)
-      }, () => window.close());
+      for (const job of jobs) {
+        chrome.runtime.sendMessage({
+          method: 'store-links',
+          job
+        });
+      }
+      window.close();
     }
   };
   document.getElementById('list').addEventListener('submit', e => {

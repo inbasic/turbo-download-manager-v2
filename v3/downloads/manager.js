@@ -18,6 +18,32 @@
     Homepage: https://add0n.com/turbo-download-manager-v2.html
 */
 
+/**
+Tests:
+1. file with no content-type header:
+https://tuxproject.de/projects/vim/
+
+2. partial download (402 Payment Required)
+https://gz.blockchair.com/bitcoin/addresses/
+
+3. wrong filename
+https://www.mozilla.org/en-CA/firefox/all/#product-desktop-release
+
+4. M3U8
+https://videojs.com/
+https://www.radiantmediaplayer.com/media/rmp-segment/bbb-abr-aes/playlist.m3u8
+
+5. M3U8 AES-128 encrypted
+http://demo.theoplayer.com/drm-aes-protection-128-encryption?hsCtaTracking=cc0cef76-cc09-40b0-8e84-c1c278ec8764%7C6c30cfd0-2817-49e5-addc-b1a5afc68170
+
+6. HLS that needs referrer header
+https://anime.anidub.life/anime/anime_ongoing/11270-devushki-poni-enkoma-umayon-01-iz-13.html
+
+7. referrer needed
+https://seinfeld9.com/episodes/seinfeld-season-1-episode-1/
+
+*/
+
 'use strict';
 
 const downloads = {
@@ -27,6 +53,43 @@ const downloads = {
   listeners: {
     onCreated: [],
     onChanged: []
+  }
+};
+
+downloads.intercept = {
+  cache: {},
+  observe(referrer, {requestHeaders}) {
+    requestHeaders.push({
+      name: 'Referer',
+      value: referrer
+    });
+    return {
+      requestHeaders
+    };
+  },
+  start(urls, referrer) {
+    const id = Math.random();
+    if (chrome.webRequest) {
+      const observe = downloads.intercept.cache[id] = downloads.intercept.observe.bind(this, referrer);
+
+      const opts = ['requestHeaders', 'blocking'];
+      if (/Firefox/.test(navigator.userAgent) === false) {
+        opts.push('extraHeaders');
+      }
+      chrome.webRequest.onBeforeSendHeaders.addListener(observe, {
+        tabId: -1,
+        urls,
+        types: ['xmlhttprequest']
+      }, opts);
+    }
+    return id;
+  },
+  stop(id) {
+    const observe = downloads.intercept.cache[id];
+    if (observe) {
+      delete downloads.intercept.cache[id];
+      chrome.webRequest.onBeforeSendHeaders.removeListener(observe);
+    }
   }
 };
 
@@ -67,12 +130,20 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
     extra: extra => {
       info.links = extra.links || info.links;
       info.offsets = extra.offsets || info.offsets;
+      if (extra.referrer && extra.links && info.iid === -1) {
+        info.iid = downloads.intercept.start(extra.links, extra.referrer);
+      }
     },
     error: e => console.warn('a fetch request is broken', e)
   };
+
+  info.iid = -1;
+  if (options.urls && options.referrer) {
+    info.iid = downloads.intercept.start(options.urls, options.referrer);
+  }
   observe.complete = (success, error) => {
     const onerror = async error => {
-      console.warn('Job Failed:', error);
+      console.warn('Job Failed:', error.message);
       info.error = error.message;
       info.state = 'interrupted';
       // we cannot download, let's use native
@@ -83,6 +154,8 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
         configs['use-native-when-possible'] &&
         info.dead !== true
       ) {
+        downloads.intercept.stop(info.iid);
+
         File.prototype.store(options).then(nativeID => chrome.downloads.search({
           id: nativeID
         }, ([native]) => {
@@ -115,7 +188,7 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
         }).then(r => {
           if (r.ok) {
             // we don't have filename info when the first chunk is not supporting threading
-            Object.assign(core.properties, core.guess(r.headers), {
+            Object.assign(core.properties, core.guess(r), {
               mime: r.headers.get('Content-Type')
             });
             r.arrayBuffer().then(ab => {
@@ -138,6 +211,9 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
           }
         });
       }
+      if (info.state === 'interrupted') {
+        downloads.intercept.stop(info.iid);
+      }
       post({
         [info.state === 'interrupted' ? 'error' : 'warning']: {current: info.error}
       });
@@ -149,6 +225,7 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
       info.offsets.push(offset);
       info.state = 'complete';
 
+      downloads.intercept.stop(info.iid);
       core.download({
         offsets: info.offsets,
         keys: options.keys
@@ -207,7 +284,8 @@ downloads.download = (options, callback = () => {}, configs = {}, start = true) 
   Object.assign(core.properties, {
     filename: options.filename || '', // use user-defined filename
     extra: {
-      links: [...options.urls] // this will cause links to be appended to the db
+      links: [...options.urls], // this will cause links to be appended to the db
+      referrer: options.referrer
     }
   });
 
@@ -262,25 +340,27 @@ const manager = {
   native(id) {
     return id < downloads.NORMAL_START_INDEX;
   },
-  schedlue(links, store = true) {
-    const olinks = Object.values(manager.ncache).map(o => o.finalUrl);
-    const slinks = links.filter(link => link && olinks.indexOf(link) === -1);
+  schedule(job, store = true) {
+    const olinks = Object.values(manager.ncache).map(o => o.url);
+    job.url = job.url || job.link;
+    delete job.link;
+    delete job.id;
 
+    if (olinks.indexOf(job.url) === -1) {
+      const id = manager.nindex;
 
-    if (slinks.length) {
-      for (const link of slinks) {
-        const id = manager.nindex;
-        manager.nindex += 1;
-        manager.ncache[id] = {
-          filename: link.split('/').pop(),
-          id,
-          finalUrl: link,
-          state: 'not_started'
-        };
-      }
+      manager.nindex += 1;
+      manager.ncache[id] = {
+        filename: job.url.split('/').pop(),
+        id,
+        state: 'not_started',
+        ...job
+      };
+
       if (store) {
         chrome.storage.sync.set({
-          links: [...olinks, ...slinks]
+          jobs: Object.values(manager.ncache),
+          links: []
         });
       }
     }
@@ -377,7 +457,7 @@ const manager = {
         if (id >= manager.NOT_START_INDEX) {
           delete manager.ncache[id];
           chrome.storage.sync.set({
-            links: Object.values(manager.ncache).map(o => o.finalUrl)
+            jobs: Object.values(manager.ncache)
           });
         }
         else if (manager.native(id) === false) {
@@ -482,10 +562,20 @@ const manager = {
 }
 // restore not started
 chrome.storage.sync.get({
-  links: []
+  links: [],
+  jobs: []
 }, prefs => {
   chrome.runtime.lastError;
   if (prefs && prefs.links.length) {
-    manager.schedlue(prefs.links, false);
+    for (const url of prefs.links) {
+      manager.schedule({
+        url
+      }, false);
+    }
+  }
+  if (prefs && prefs.jobs.length) {
+    for (const job of prefs.jobs) {
+      manager.schedule(job, false);
+    }
   }
 });

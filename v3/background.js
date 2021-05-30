@@ -132,14 +132,26 @@ const onMessage = (request, sender, response) => {
   else if (request.method === 'add-jobs') {
     if (request.jobs.length) {
       (async () => {
-        for (const {link, links, keys, filename, threads} of request.jobs) {
+        let r = '';
+        if (request.tabId) {
+          const tab = await new Promise(resolve => chrome.tabs.get(request.tabId, resolve));
+          if (tab && tab.url && tab.url.startsWith('http')) {
+            r = tab.url;
+          }
+        }
+        for (const {link, referrer, base, links, keys, filename, threads} of request.jobs) {
           const job = {
             url: link,
-            filename
+            filename,
+            referrer: referrer || r
           };
           if (links) {
             delete job.url;
+
             job.urls = links;
+            if (base) {
+              job.urls = job.urls.map(s => s.startsWith('http') ? s : base + s);
+            }
             job.keys = keys;
           }
           manager.download(job, undefined, {
@@ -157,7 +169,7 @@ const onMessage = (request, sender, response) => {
     }
   }
   else if (request.method === 'store-links') {
-    manager.schedlue(request.links);
+    manager.schedule(request.job);
 
     response(true);
   }
@@ -174,9 +186,13 @@ const onMessage = (request, sender, response) => {
     manager.search({
       id: request.id
     }, ([d]) => {
-      manager.download({
-        url: d.finalUrl
-      }, () => {
+      if (d.base) {
+        d.urls = d.links.map(s => s.startsWith('http') ? s : d.base + s);
+        delete d.base;
+        delete d.links;
+      }
+
+      manager.download(d, () => {
         manager.erase({
           id: request.id
         });
@@ -440,13 +456,22 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (info.menuItemId === 'download-image' || info.menuItemId === 'download-media') {
       url = info.srcUrl;
     }
-    manager.download({url}, undefined, CONFIG);
+    manager.download({
+      referrer: tab.url && tab.url.startsWith('http') ? tab.url : '',
+      url
+    }, undefined, CONFIG);
   }
   else if (info.menuItemId === 'store-link') {
-    manager.schedlue([info.linkUrl]);
+    manager.schedule({
+      url: info.linkUrl,
+      referrer: tab.url.startsWith('http') ? tab.url : ''
+    });
   }
   else if (info.menuItemId === 'store-image' || info.menuItemId === 'store-media') {
-    manager.schedlue([info.srcUrl]);
+    manager.schedule({
+      url: info.srcUrl,
+      referrer: tab.url.startsWith('http') ? tab.url : ''
+    });
   }
   else if (info.menuItemId === 'extract-requests') {
     chrome.tabs.executeScript({
@@ -540,7 +565,7 @@ window.webRequest.install();
             tabs.query({active: true, currentWindow: true}, tbs => tabs.create({
               url: page + '?version=' + version + (previousVersion ? '&p=' + previousVersion : '') + '&type=' + reason,
               active: reason === 'install',
-              index: tbs ? tbs[0].index + 1 : undefined
+              ...(tbs && tbs.length && {index: tbs[0].index + 1})
             }));
             storage.local.set({'last-update': Date.now()});
           }
