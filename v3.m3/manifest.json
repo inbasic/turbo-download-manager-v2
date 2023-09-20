@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "version": "0.7.0",
+  "name": "Turbo Download Manager (3rd edition)",
+  "description": "__MSG_description__",
+  "default_locale": "en",
+  "permissions": [
+    "storage",
+    "downloads",
+    "downloads.open",
+    "notifications",
+    "contextMenus",
+    "unlimitedStorage",
+    "power",
+    "webRequest",
+    "declarativeNetRequestWithHostAccess",
+    "offscreen",
+    "scripting",
+    "clipboardRead"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "icons": {
+    "16": "/data/icons/16.png",
+    "32": "/data/icons/32.png",
+    "48": "/data/icons/48.png",
+    "64": "/data/icons/64.png",
+    "128": "/data/icons/128.png",
+    "256": "/data/icons/256.png",
+    "512": "/data/icons/512.png"
+  },
+  "homepage_url": "https://webextension.org/listing/turbo-download-manager-v2.html",
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "action": {
+    "default_popup": "/data/manager/index.html?popup"
+  },
+  "content_scripts":[{
+    "matches":["*://*/*"],
+    "exclude_matches": ["*://*.youtube.com/*"],
+    "all_frames": true,
+    "match_about_blank": true,
+    "run_at": "document_start",
+    "js":["/data/scripts/inject.js"]
+  }],
+  "options_ui": {
+    "page": "/data/options/index.html"
+  }
+}

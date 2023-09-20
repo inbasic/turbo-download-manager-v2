@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Turbo Download Manager</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="index.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+  <input type="text" id="clipboard" class="hidden">
+  <header>
+    <span data-command="clear-complete" title="Clear all completed jobs.">Clear Completed</span>
+    <span data-command="clear-interrupted" title="Clear all failed jobs. Use Shift + Click to cancel all currently paused jobs.">Clear Failed</span>
+    <span data-command="detach" title="Open in detached mode (in a browser tab)">Detach</span>
+    <span data-command="add-new" data-value="" title="Add new downloading jobs. Use Shift + Click to open the interface without extracting media links from the current tab or the clipboard.">Add Jobs</span>
+  </header>
+  <section id="entries"></section>
+  <div id="confirm" class="hidden" title="Without this permission, TDM only offers to download media streams that are played in a browser tab. With this permission, the extension observes media related network activities whether they are played or not.">
+    <span>Enable Media Link Detection</span>
+    <span data-command="no">No</span>
+    <span data-command="yes">Yes</span>
+  </div>
+
+  <script type="text/javascript" src="components/download-item.js"></script>
+  <script type="text/javascript" src="index.js"></script>
+</body>
+</html>

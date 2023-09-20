@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Turbo Download Manager :: Options Page</title>
+  <link rel="stylesheet" type="text/css" href="index.css">
+</head>
+<body>
+  <p class="box">
+    <label for="cache.size">Maximum number of media requests to keep for each tab</label>
+    <input type="number" min="1" id="cache.size">
+  </p>
+  <p class="box">
+    <label for="queue.size">Maximum number of simultaneous downloading jobs</label>
+    <input type="number" min="1" id="queue.size">
+  </p>
+  <p class="box" id="chrome.power">
+    <label for="keep.awake">Prevent from sleep while downloading</label>
+    <select id="keep.awake">
+      <option value="system">System</option>
+      <option value="display">Display</option>
+      <option value="">None</option>
+    </select>
+  </p>
+  <p>
+    <table>
+      <tr>
+        <td><input type="checkbox" id="context.extract-links"></td>
+        <td><label for="context.extract-links">Add context menu item for "Extract Links"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.download-link"></td>
+        <td><label for="context.download-link">Add context menu item for "Download Link"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.store-link"></td>
+        <td><label for="context.store-link">Add context menu item for "Store Link"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.download-image"></td>
+        <td><label for="context.download-image">Add context menu item for "Download Image"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.store-image"></td>
+        <td><label for="context.store-image">Add context menu item for "Store Image"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.download-media"></td>
+        <td><label for="context.download-media">Add context menu item for "Download Media"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.store-media"></td>
+        <td><label for="context.store-media">Add context menu item for "Store Media"</label></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" id="context.extract-requests"></td>
+        <td><label for="context.extract-requests">Add context menu item for "Extract Media Links"</label></td>
+      </tr>
+    </table>
+  </p>
+
+  <p>
+    <input type="button" id="support" value="Support Development">
+    <input type="button" id="reset" value="Factory Reset"> - <input type="button" id="save" value="Save">
+    <span id="toast"></span>
+  </p>
+  <script type="text/javascript" src="index.js"></script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+:root {
+  --front: #3c4043;
+  --blue: #4a89ef;
+  --dark-blue: #2b5290;
+  --light-blue: #90b5f1;
+  --green: #00ab8c;
+  --white: #fff;
+  --gray: #a7a7a7;
+  --bg-gray: #efefef;
+  --state-complete: #f7f7f7;
+  --state-interrupted: #ffe9dd;
+  --state-transfer: #f1fffa;
+  --state-paused: #fbffd8;
+  --state-not_started: #ffe8c7;
+  --state-queue: #e7fff3;
+}
+
+body {
+  font-size: 13px;
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  margin: 0;
+  height: 100vh;
+  color: var(--front);
+  background-color: var(--bg-gray);
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+}
+body[data-popup=true] {
+  width: 600px;
+}
+
+@media (pointer: none), (pointer: coarse) {
+  body {
+    min-width: unset;
+  }
+}
+header {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  white-space: nowrap;
+  user-select: none;
+}
+header > span {
+  background-color: var(--blue);
+  color: var(--white);
+  padding: 12px;
+  text-align: center;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+[data-command] {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+[data-command]:active {
+  opacity: 0.8;
+  transition: 0s;
+}
+#entries {
+  flex: 1;
+  overflow: auto;
+}
+#entries:empty::before {
+  content: 'Files you download appear here';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+[data-command="add-new"] {
+  position: relative;
+}
+[data-command="add-new"]:not([data-value=''])::before {
+  content: attr(data-value);
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--dark-blue);
+  padding: 2px 5px;
+  font-size: 10px;
+}
+
+#confirm {
+  display: grid;
+  grid-template-columns: 1fr min-content min-content;
+  background: var(--blue);
+  color: var(--white);
+  align-items: center;
+}
+#confirm > span:first-child {
+  text-indent: 10px;
+}
+#confirm > span[data-command] {
+  padding: 10px 20px;
+  position: relative;
+}
+header > span:not(:first-child)::after,
+#confirm > span:not(:first-child)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  font-weight: 100;
+  border-left: solid 1px var(--light-blue);
+  height: 40%;
+}
+#cliboard {
+  position: absolute;
+}
+.hidden {
+  display: none !important;
+}
