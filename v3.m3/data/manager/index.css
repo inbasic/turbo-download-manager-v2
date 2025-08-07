@@ -1,7 +1,7 @@
 :root {
   --front: #3c4043;
-  --blue: #4a89ef;
-  --dark-blue: #2b5290;
+  --blue: #3281ff;
+  --dark-blue: #2b5dae;
   --light-blue: #90b5f1;
   --green: #00ab8c;
   --white: #fff;
@@ -40,11 +40,17 @@ header {
   grid-template-columns: repeat(4, 1fr);
   white-space: nowrap;
   user-select: none;
-}
-header > span {
   background-color: var(--blue);
   color: var(--white);
-  padding: 12px;
+  border-radius: 24px;
+  top: 15px;
+  left: 15px;
+  right: 15px;
+  position: absolute;
+  z-index: 100;
+}
+header > span {
+  padding: 16px;
   text-align: center;
   position: relative;
   display: inline-flex;
