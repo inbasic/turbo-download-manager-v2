@@ -1,7 +1,7 @@
 /**
     Turbo Download Manager - A download manager with the ability to pause and resume downloads
 
-    Copyright (C) 2014-2023 [InBasic](https://webextension.org/listing/turbo-download-manager-v2.html)
+    Copyright (C) 2014-2026 [InBasic](https://webextension.org/listing/turbo-download-manager-v2.html)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the Mozilla Public License as published by

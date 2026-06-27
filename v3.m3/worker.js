@@ -1,7 +1,7 @@
 /**
     Turbo Download Manager - A download manager with the ability to pause and resume downloads
 
-    Copyright (C) 2014-2023 [InBasic](https://webextension.org/listing/turbo-download-manager-v2.html)
+    Copyright (C) 2014-2026 [InBasic](https://webextension.org/listing/turbo-download-manager-v2.html)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the Mozilla Public License as published by
@@ -18,7 +18,7 @@
     Homepage: https://webextension.org/listing/turbo-download-manager-v2.html
 */
 
-/* global manager, clients */
+/* global manager */
 
 self.importScripts('connect.js');
 self.importScripts('manager.js');
@@ -336,18 +336,24 @@ manager.onChanged.addListener(info => {
 
 // context menu
 {
-  const startup = () => chrome.storage.local.get({
-    'context.extract-links': true,
-    'context.download-link': true,
-    'context.store-link': true,
-    'context.download-image': true,
-    'context.store-image': true,
-    'context.download-media': true,
-    'context.store-media': true,
-    'context.extract-requests': true,
-    'context.clear-cache': true,
-    'context.test': true
-  }, prefs => {
+  const startup = async () => {
+    if (startup.done) {
+      return;
+    }
+    startup.done = true;
+
+    const prefs = await chrome.storage.local.get({
+      'context.extract-links': true,
+      'context.download-link': true,
+      'context.store-link': true,
+      'context.download-image': true,
+      'context.store-image': true,
+      'context.download-media': true,
+      'context.store-media': true,
+      'context.extract-requests': true,
+      'context.clear-cache': true,
+      'context.test': true
+    });
     const map = {
       'extract-links': {
         contexts: ['selection'],
@@ -411,7 +417,7 @@ manager.onChanged.addListener(info => {
         chrome.contextMenus.remove(id, () => chrome.runtime.lastError);
       }
     }
-  });
+  };
   chrome.runtime.onStartup.addListener(startup);
   chrome.runtime.onInstalled.addListener(startup);
   let id;
@@ -455,7 +461,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       });
     }).catch(e => console.error(e)));
   }
-  else if (info.menuItemId === 'extract-links') { /// allFrames????
+  else if (info.menuItemId === 'extract-links') { // TODO: allFrames
     chrome.tabs.query({
       active: true,
       lastFocusedWindow: true
@@ -488,7 +494,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       referrer: tab.url.startsWith('http') ? tab.url : ''
     });
   }
-  else if (info.menuItemId === 'extract-requests') { /// allFrames?
+  else if (info.menuItemId === 'extract-requests') { // TODO: allFrames
     chrome.scripting.executeScript({
       target: {
         tabId: tab.id
@@ -506,9 +512,16 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 /* badge */
 {
-  const startup = () => chrome.action.setBadgeBackgroundColor({
-    color: '#646464'
-  });
+  const startup = () => {
+    if (startup.done) {
+      return;
+    }
+    startup.done = true;
+
+    chrome.action.setBadgeBackgroundColor({
+      color: '#646464'
+    });
+  };
   chrome.runtime.onStartup.addListener(startup);
   chrome.runtime.onInstalled.addListener(startup);
 }
@@ -559,11 +572,20 @@ webRequest.install();
 
 /* Start */
 {
-  const startup = () => chrome.storage.local.get({
-    'queue.size': 3
-  }, prefs => manager.PUASE_ON_META = prefs['queue.size']);
+  const startup = async () => {
+    if (startup.done) {
+      return;
+    }
+    startup.done = true;
+
+    const prefs = await chrome.storage.local.get({
+      'queue.size': 3
+    });
+    manager.PUASE_ON_META = prefs['queue.size'];
+  };
   chrome.runtime.onStartup.addListener(startup);
   chrome.runtime.onInstalled.addListener(startup);
+
   chrome.storage.onChanged.addListener(ps => {
     if (ps['queue.size']) {
       manager.PUASE_ON_META = ps['queue.size'].newValue;
